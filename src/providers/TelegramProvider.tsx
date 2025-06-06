@@ -3,6 +3,7 @@ import AuthService, { TelegramUser, AuthState } from '../services/AuthService';
 import UserRegistrationService from '../services/UserRegistrationService';
 
 interface TelegramContextType extends AuthState {
+  isReady: boolean;
   showMainButton: (text: string, onClick: () => void) => void;
   hideMainButton: () => void;
   showBackButton: (onClick: () => void) => void;
