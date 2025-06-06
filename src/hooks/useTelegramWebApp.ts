@@ -21,7 +21,7 @@ export const useTelegramWebApp = () => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const WebApp = window.Telegram.WebApp;
       
-      logger.info('Инициализация Telegram WebApp');
+      logger.info('Инициализация Telegram WebApp', {});
       
       // Основная инициализация
       WebApp.ready();
@@ -53,7 +53,7 @@ export const useTelegramWebApp = () => {
 
       // Lifecycle events
       WebApp.onEvent('settingsButtonClicked', () => {
-        logger.info('Кнопка настроек нажата');
+        logger.info('Кнопка настроек нажата', {});
       });
 
       // Closing confirmation с проверкой поддержки
@@ -63,7 +63,7 @@ export const useTelegramWebApp = () => {
       }
       
       setIsReady(true);
-      logger.info('Telegram WebApp инициализирован успешно');
+      logger.info('Telegram WebApp инициализирован успешно', {});
     } else {
       console.warn('Telegram Web App не доступен, используем тестовые данные');
       setIsReady(true);
@@ -97,7 +97,7 @@ export const useTelegramWebApp = () => {
   const hideMainButton = useCallback(() => {
     if (window.Telegram?.WebApp?.MainButton) {
       window.Telegram.WebApp.MainButton.hide();
-      logger.debug('MainButton скрыта');
+      logger.debug('MainButton скрыта', {});
     }
   }, []);
 
@@ -106,14 +106,14 @@ export const useTelegramWebApp = () => {
       const BackButton = window.Telegram.WebApp.BackButton;
       BackButton.show();
       BackButton.onClick(onClick);
-      logger.debug('BackButton показана');
+      logger.debug('BackButton показана', {});
     }
   }, []);
 
   const hideBackButton = useCallback(() => {
     if (window.Telegram?.WebApp?.BackButton) {
       window.Telegram.WebApp.BackButton.hide();
-      logger.debug('BackButton скрыта');
+      logger.debug('BackButton скрыта', {});
     }
   }, []);
 
@@ -145,14 +145,14 @@ export const useTelegramWebApp = () => {
   const expand = useCallback(() => {
     if (window.Telegram?.WebApp?.expand) {
       window.Telegram.WebApp.expand();
-      logger.debug('WebApp развернут');
+      logger.debug('WebApp развернут', {});
     }
   }, []);
 
   const ready = useCallback(() => {
     if (window.Telegram?.WebApp?.ready) {
       window.Telegram.WebApp.ready();
-      logger.debug('WebApp готов');
+      logger.debug('WebApp готов', {});
     }
   }, []);
 
@@ -161,7 +161,7 @@ export const useTelegramWebApp = () => {
     if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).enableClosingConfirmation) {
       (window.Telegram.WebApp as any).enableClosingConfirmation();
       setIsClosingConfirmationEnabled(true);
-      logger.debug('Подтверждение закрытия включено');
+      logger.debug('Подтверждение закрытия включено', {});
     }
   }, []);
 
@@ -169,7 +169,7 @@ export const useTelegramWebApp = () => {
     if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).disableClosingConfirmation) {
       (window.Telegram.WebApp as any).disableClosingConfirmation();
       setIsClosingConfirmationEnabled(false);
-      logger.debug('Подтверждение закрытия отключено');
+      logger.debug('Подтверждение закрытия отключено', {});
     }
   }, []);
 
