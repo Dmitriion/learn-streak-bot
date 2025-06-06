@@ -15,17 +15,24 @@ export const useTelegramNavigation = () => {
   const { showBackButton, hideBackButton, hapticFeedback, isRegistered, registrationStatus } = useTelegram();
   
   const [navigation, setNavigation] = useState<NavigationState>({
-    currentRoute: 'dashboard', // Начальное значение по умолчанию
+    currentRoute: 'dashboard',
     history: [],
     isInitialized: false
   });
 
-  // Инициализация роута на основе состояния регистрации
+  // Инициализация роута только после завершения проверки регистрации
   useEffect(() => {
-    if (registrationStatus === 'checking' || navigation.isInitialized) {
-      return; // Не инициализируем пока идет проверка или уже инициализировано
+    // Не инициализируем пока идет проверка
+    if (registrationStatus === 'checking') {
+      return;
     }
 
+    // Если уже инициализировано, не делаем повторную инициализацию
+    if (navigation.isInitialized) {
+      return;
+    }
+
+    // Определяем начальный роут на основе статуса регистрации
     const initialRoute: TelegramRoute = isRegistered ? 'dashboard' : 'registration';
     
     setNavigation({
@@ -63,8 +70,8 @@ export const useTelegramNavigation = () => {
       history: [...prev.history, { route, params }]
     }));
 
-    // Показываем кнопку "Назад" если не на главной странице и не на регистрации
-    if (route !== 'dashboard' && route !== 'registration') {
+    // Показываем кнопку "Назад" если не на главной странице
+    if (route !== 'dashboard') {
       showBackButton(() => goBack());
     } else {
       hideBackButton();
@@ -84,7 +91,7 @@ export const useTelegramNavigation = () => {
         route: isRegistered ? 'dashboard' : 'registration' 
       };
       
-      if (previousPage.route === 'dashboard' || previousPage.route === 'registration') {
+      if (previousPage.route === 'dashboard') {
         hideBackButton();
       }
       

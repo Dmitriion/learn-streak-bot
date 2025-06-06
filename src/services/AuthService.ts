@@ -4,9 +4,6 @@ import { AuthValidator } from './auth/AuthValidator';
 import { UserAuthenticator } from './auth/UserAuthenticator';
 import { UserRegistrationManager } from './auth/UserRegistrationManager';
 
-// Re-export types for backward compatibility
-export type { TelegramUser, AuthState };
-
 class AuthService {
   private static instance: AuthService;
   private validator: AuthValidator;
@@ -40,3 +37,4 @@ class AuthService {
 }
 
 export default AuthService;
+export type { TelegramUser, AuthState };

@@ -8,7 +8,6 @@ import AdvancedAnalytics from '../../pages/AdvancedAnalytics';
 import LessonDetail from '../LessonDetail';
 import Subscription from '../Subscription';
 import PaymentSuccess from '../PaymentSuccess';
-import Registration from '../Registration';
 import NotFound from '../../pages/NotFound';
 import AppLoader from './AppLoader';
 
@@ -49,10 +48,6 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentRoute, params, isLoading =
     case '/advanced-analytics':
     case 'advanced-analytics':
       return <AdvancedAnalytics />;
-    
-    case '/registration':
-    case 'registration':
-      return <Registration onRegistrationComplete={() => {}} />;
     
     case '/subscription':
     case 'subscription':

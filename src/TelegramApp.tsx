@@ -30,8 +30,8 @@ const TelegramApp = () => {
     return <AppLoader />;
   }
 
-  // Если пользователь не зарегистрирован, показываем экран регистрации
-  if (isAuthenticated && !isRegistered && currentRoute === 'registration') {
+  // Если пользователь аутентифицирован но не зарегистрирован - показываем регистрацию
+  if (isAuthenticated && !isRegistered) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
         <AppStyles theme={theme} viewportHeight={viewportHeight} />
@@ -44,13 +44,14 @@ const TelegramApp = () => {
     );
   }
 
+  // Если пользователь зарегистрирован - показываем основное приложение
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
       <AppStyles theme={theme} viewportHeight={viewportHeight} />
       <AppRouter 
         currentRoute={currentRoute} 
         params={params} 
-        isLoading={registrationStatus === 'checking'}
+        isLoading={false}
       />
     </div>
   );
