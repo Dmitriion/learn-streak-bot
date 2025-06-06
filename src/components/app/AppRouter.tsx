@@ -5,7 +5,7 @@ import Lessons from '../../pages/Lessons';
 import Test from '../../pages/Test';
 import Analytics from '../../pages/Analytics';
 import AdvancedAnalytics from '../../pages/AdvancedAnalytics';
-import LessonDetail, { LessonDetailProps } from '../LessonDetail';
+import LessonDetail from '../LessonDetail';
 import Subscription from '../Subscription';
 import PaymentSuccess from '../PaymentSuccess';
 import NotFound from '../../pages/NotFound';

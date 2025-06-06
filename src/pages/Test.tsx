@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,21 +7,25 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle, XCircle, Clock, ArrowLeft, Award } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTelegramNavigation } from '../hooks/useTelegramNavigation';
+import { useTelegram } from '../providers/TelegramProvider';
 
-const Test = () => {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const lessonId = searchParams.get('lesson');
+interface TestProps {
+  lessonId?: number;
+}
+
+const Test: React.FC<TestProps> = ({ lessonId = 1 }) => {
+  const { navigate } = useTelegramNavigation();
+  const { hapticFeedback, showBackButton, hideBackButton } = useTelegram();
   
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState<Record<number, any>>({});
   const [showResults, setShowResults] = useState(false);
   const [timeLeft, setTimeLeft] = useState(1200); // 20 минут в секундах
   const [isActive, setIsActive] = useState(true);
 
   // Тестовые данные для разных типов вопросов
-  const testData = {
+  const testData: Record<number, any> = {
     1: {
       title: "Тест: Введение в коучинг",
       questions: [
@@ -87,7 +90,18 @@ const Test = () => {
 
   // Таймер
   useEffect(() => {
-    let interval = null;
+    showBackButton(() => {
+      hapticFeedback('light');
+      navigate('lessons');
+    });
+
+    return () => {
+      hideBackButton();
+    };
+  }, [showBackButton, hideBackButton, hapticFeedback, navigate]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
     if (isActive && timeLeft > 0 && !showResults) {
       interval = setInterval(() => {
         setTimeLeft(timeLeft => timeLeft - 1);
@@ -95,16 +109,18 @@ const Test = () => {
     } else if (timeLeft === 0) {
       handleSubmitTest();
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isActive, timeLeft, showResults]);
 
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const handleAnswerChange = (questionId, answer) => {
+  const handleAnswerChange = (questionId: number, answer: any) => {
     setAnswers(prev => ({
       ...prev,
       [questionId]: answer
@@ -112,6 +128,7 @@ const Test = () => {
   };
 
   const handleNext = () => {
+    hapticFeedback('light');
     if (currentQuestion < currentTest.questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
@@ -120,19 +137,21 @@ const Test = () => {
   };
 
   const handlePrevious = () => {
+    hapticFeedback('light');
     if (currentQuestion > 0) {
       setCurrentQuestion(currentQuestion - 1);
     }
   };
 
   const handleSubmitTest = () => {
+    hapticFeedback('medium');
     setIsActive(false);
     setShowResults(true);
   };
 
   const calculateScore = () => {
     let correct = 0;
-    currentTest.questions.forEach(question => {
+    currentTest.questions.forEach((question: any) => {
       const userAnswer = answers[question.id];
       if (question.type === 'radio') {
         if (userAnswer === question.correct) correct++;
@@ -145,7 +164,7 @@ const Test = () => {
     return Math.round((correct / currentTest.questions.length) * 100);
   };
 
-  const getResultMessage = (score) => {
+  const getResultMessage = (score: number) => {
     if (score >= 90) return { message: "Отлично! Вы прекрасно усвоили материал!", color: "text-green-600", icon: Award };
     if (score >= 70) return { message: "Хорошо! Есть небольшие пробелы, но в целом материал усвоен.", color: "text-blue-600", icon: CheckCircle };
     if (score >= 50) return { message: "Удовлетворительно. Рекомендуем повторить материал.", color: "text-yellow-600", icon: Clock };
@@ -178,7 +197,7 @@ const Test = () => {
                 <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
                     <div className="text-2xl font-bold text-gray-800">
-                      {currentTest.questions.filter(q => {
+                      {currentTest.questions.filter((q: any) => {
                         const userAnswer = answers[q.id];
                         if (q.type === 'radio') return userAnswer === q.correct;
                         if (q.type === 'text') return userAnswer && userAnswer.toLowerCase().includes(q.correct.toLowerCase());
@@ -196,7 +215,7 @@ const Test = () => {
 
               <div className="space-y-4">
                 <h3 className="font-semibold">Детальные результаты:</h3>
-                {currentTest.questions.map((question, index) => {
+                {currentTest.questions.map((question: any, index: number) => {
                   const userAnswer = answers[question.id];
                   let isCorrect = false;
                   
@@ -243,6 +262,7 @@ const Test = () => {
               <div className="flex gap-3 justify-center">
                 <Button
                   onClick={() => {
+                    hapticFeedback('medium');
                     setCurrentQuestion(0);
                     setAnswers({});
                     setShowResults(false);
@@ -254,7 +274,10 @@ const Test = () => {
                   Пересдать тест
                 </Button>
                 <Button
-                  onClick={() => navigate('/lessons')}
+                  onClick={() => {
+                    hapticFeedback('medium');
+                    navigate('lessons');
+                  }}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
                   Вернуться к урокам
@@ -277,7 +300,10 @@ const Test = () => {
         <div className="flex items-center justify-between">
           <Button
             variant="outline"
-            onClick={() => navigate('/lessons')}
+            onClick={() => {
+              hapticFeedback('light');
+              navigate('lessons');
+            }}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -316,7 +342,7 @@ const Test = () => {
                 value={answers[currentQ.id]?.toString() || ""}
                 onValueChange={(value) => handleAnswerChange(currentQ.id, parseInt(value))}
               >
-                {currentQ.options.map((option, index) => (
+                {currentQ.options.map((option: string, index: number) => (
                   <div key={index} className="flex items-center space-x-2 p-3 rounded-lg hover:bg-gray-50 transition-colors">
                     <RadioGroupItem value={index.toString()} id={`option-${index}`} />
                     <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
