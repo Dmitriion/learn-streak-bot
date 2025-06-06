@@ -29,11 +29,11 @@ class TelegramAnalytics {
     this.metrics = {
       user_id: userId,
       telegram_user_id: telegramUserId,
-      app_version: webApp.version || '1.0.0',
+      app_version: this.getAppVersion(),
       platform: this.detectPlatform(),
       theme: webApp.colorScheme || 'light',
-      viewport_height: webApp.viewportHeight || window.innerHeight,
-      is_expanded: webApp.isExpanded || false,
+      viewport_height: this.getViewportHeight(),
+      is_expanded: this.getIsExpanded(),
       haptic_feedback_enabled: !!webApp.HapticFeedback,
       back_button_clicks: 0,
       main_button_clicks: 0,
@@ -46,14 +46,42 @@ class TelegramAnalytics {
     this.logger.info('Telegram метрики инициализированы', this.metrics);
   }
 
+  private getAppVersion(): string {
+    const webApp = window.Telegram?.WebApp;
+    if (webApp && 'version' in webApp && webApp.version) {
+      return webApp.version;
+    }
+    return '1.0.0';
+  }
+
+  private getViewportHeight(): number {
+    const webApp = window.Telegram?.WebApp;
+    if (webApp && 'viewportHeight' in webApp && webApp.viewportHeight) {
+      return webApp.viewportHeight;
+    }
+    return window.innerHeight;
+  }
+
+  private getIsExpanded(): boolean {
+    const webApp = window.Telegram?.WebApp;
+    if (webApp && 'isExpanded' in webApp) {
+      return webApp.isExpanded || false;
+    }
+    return false;
+  }
+
   private detectPlatform(): 'ios' | 'android' | 'web' {
-    if (!window.Telegram?.WebApp?.platform) {
-      return 'web';
+    const webApp = window.Telegram?.WebApp;
+    if (webApp && 'platform' in webApp && webApp.platform) {
+      const platform = webApp.platform.toLowerCase();
+      if (platform.includes('ios')) return 'ios';
+      if (platform.includes('android')) return 'android';
     }
     
-    const platform = window.Telegram.WebApp.platform.toLowerCase();
-    if (platform.includes('ios')) return 'ios';
-    if (platform.includes('android')) return 'android';
+    // Fallback определение по User-Agent
+    const userAgent = navigator.userAgent.toLowerCase();
+    if (userAgent.includes('iphone') || userAgent.includes('ipad')) return 'ios';
+    if (userAgent.includes('android')) return 'android';
     return 'web';
   }
 
@@ -79,19 +107,11 @@ class TelegramAnalytics {
       });
     }
 
-    if (webApp.SettingsButton) {
-      webApp.SettingsButton.onClick(() => {
-        this.metrics!.settings_button_clicks++;
-        this.saveMetrics();
-        this.logger.debug('Нажата кнопка настроек в Telegram');
-      });
-    }
-
-    // Отслеживаем изменения viewport
+    // Отслеживаем изменения viewport (если доступно)
     webApp.onEvent('viewportChanged', () => {
       if (this.metrics) {
-        this.metrics.viewport_height = webApp.viewportHeight || window.innerHeight;
-        this.metrics.is_expanded = webApp.isExpanded || false;
+        this.metrics.viewport_height = this.getViewportHeight();
+        this.metrics.is_expanded = this.getIsExpanded();
         this.saveMetrics();
       }
     });

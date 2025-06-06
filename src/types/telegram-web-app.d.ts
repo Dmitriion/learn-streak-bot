@@ -53,7 +53,6 @@ declare global {
           removeItems(keys: string[], callback?: (error: Error | null) => void): void;
           getKeys(callback: (error: Error | null, keys?: string[]) => void): void;
         };
-        // Методы для работы с внешними ссылками и платежами
         openLink(url: string): void;
         openTelegramLink(url: string): void;
         openInvoice(url: string, callback?: (status: string) => void): void;
@@ -71,6 +70,11 @@ declare global {
         }, callback?: (buttonId?: string) => void): void;
         onEvent(eventType: string, eventHandler: () => void): void;
         offEvent(eventType: string, eventHandler: () => void): void;
+        // Дополнительные свойства, которые могут быть доступны
+        version?: string;
+        platform?: string;
+        viewportHeight?: number;
+        isExpanded?: boolean;
       };
     };
   }
