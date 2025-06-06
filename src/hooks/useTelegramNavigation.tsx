@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { useTelegram } from '../providers/TelegramProvider';
 
-export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'lesson-detail' | 'registration' | 'subscription' | 'payment-success';
+export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'lesson-detail' | 'registration' | 'subscription' | 'payment-success' | 'not-found';
 
 interface NavigationState {
   currentRoute: TelegramRoute;
@@ -25,6 +25,14 @@ export const useTelegramNavigation = () => {
     if (protectedRoutes.includes(route) && !isRegistered) {
       console.warn('Попытка доступа к защищенному роуту без регистрации');
       return;
+    }
+
+    // Проверка на существование роута
+    const validRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'lesson-detail', 'registration', 'subscription', 'payment-success', 'not-found'];
+    
+    if (!validRoutes.includes(route)) {
+      console.warn('Неизвестный роут:', route, 'Перенаправление на not-found');
+      route = 'not-found';
     }
 
     hapticFeedback('light');

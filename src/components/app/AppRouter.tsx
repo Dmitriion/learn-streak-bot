@@ -19,29 +19,38 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentRoute, params }) => {
   switch (currentRoute) {
     case '/':
     case '/dashboard':
+    case 'dashboard':
       return <Dashboard />;
     
     case '/lessons':
+    case 'lessons':
       return <Lessons />;
     
     case '/lesson':
+    case 'lesson-detail':
       return <LessonDetail lessonId={parseInt(params.id || '1')} />;
     
     case '/test':
+    case 'test':
       return <Test lessonId={parseInt(params.id || '1')} />;
     
     case '/analytics':
+    case 'analytics':
       return <Analytics />;
     
     case '/advanced-analytics':
+    case 'advanced-analytics':
       return <AdvancedAnalytics />;
     
     case '/subscription':
+    case 'subscription':
       return <Subscription />;
     
     case '/payment-success':
+    case 'payment-success':
       return <PaymentSuccess />;
     
+    case 'not-found':
     default:
       return <NotFound />;
   }
