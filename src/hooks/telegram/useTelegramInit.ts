@@ -37,6 +37,14 @@ export const useTelegramInit = () => {
     logger.info('Кнопка настроек нажата', {});
   }, [logger]);
 
+  const handleMainButtonClicked = useCallback(() => {
+    logger.debug('Main button clicked', {});
+  }, [logger]);
+
+  const handleBackButtonClicked = useCallback(() => {
+    logger.debug('Back button clicked', {});
+  }, [logger]);
+
   useEffect(() => {
     if (initializationRef.current) return;
     initializationRef.current = true;
@@ -46,20 +54,31 @@ export const useTelegramInit = () => {
       
       logger.info('Инициализация Telegram WebApp', {});
       
+      // Инициализируем WebApp
       WebApp.ready();
       WebApp.expand();
       
+      // Устанавливаем начальные значения
       setTheme(WebApp.colorScheme as 'light' | 'dark');
       setViewportHeight((WebApp as any).viewportHeight || window.innerHeight);
       setIsExpanded((WebApp as any).isExpanded || false);
       
+      // Подписываемся на события
       WebApp.onEvent('themeChanged', handleThemeChanged);
       WebApp.onEvent('viewportChanged', handleViewportChanged);
       WebApp.onEvent('settingsButtonClicked', handleSettingsButtonClicked);
+      WebApp.onEvent('mainButtonClicked', handleMainButtonClicked);
+      WebApp.onEvent('backButtonClicked', handleBackButtonClicked);
 
+      // Включаем подтверждение закрытия для лучшего UX
       if ((WebApp as any).enableClosingConfirmation) {
         (WebApp as any).enableClosingConfirmation();
         setIsClosingConfirmationEnabled(true);
+      }
+
+      // Обрабатываем deep links если есть
+      if (WebApp.initDataUnsafe?.start_param) {
+        logger.info('Deep link detected', { startParam: WebApp.initDataUnsafe.start_param });
       }
       
       setIsReady(true);
@@ -79,9 +98,11 @@ export const useTelegramInit = () => {
         WebApp.offEvent('themeChanged', handleThemeChanged);
         WebApp.offEvent('viewportChanged', handleViewportChanged);
         WebApp.offEvent('settingsButtonClicked', handleSettingsButtonClicked);
+        WebApp.offEvent('mainButtonClicked', handleMainButtonClicked);
+        WebApp.offEvent('backButtonClicked', handleBackButtonClicked);
       }
     };
-  }, [handleThemeChanged, handleViewportChanged, handleSettingsButtonClicked, logger]);
+  }, [handleThemeChanged, handleViewportChanged, handleSettingsButtonClicked, handleMainButtonClicked, handleBackButtonClicked, logger]);
 
   const enableClosingConfirmation = useCallback(() => {
     if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).enableClosingConfirmation) {

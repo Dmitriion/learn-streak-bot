@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useTelegram } from '../providers/TelegramProvider';
 
-export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'advanced-analytics' | 'lesson-detail' | 'registration' | 'subscription' | 'payment-success' | 'not-found';
+export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'advanced-analytics' | 'lesson-detail' | 'subscription' | 'payment-success' | 'not-found';
 
 interface NavigationState {
   currentRoute: TelegramRoute;
@@ -20,10 +20,15 @@ export const useTelegramNavigation = () => {
     isInitialized: false
   });
 
-  // Инициализация роута только после завершения проверки регистрации
+  // Инициализация навигации только для зарегистрированных пользователей
   useEffect(() => {
-    // Не инициализируем пока идет проверка
+    // Не инициализируем пока идет проверка регистрации
     if (registrationStatus === 'checking') {
+      return;
+    }
+
+    // Навигация работает только для зарегистрированных пользователей
+    if (!isRegistered) {
       return;
     }
 
@@ -32,8 +37,15 @@ export const useTelegramNavigation = () => {
       return;
     }
 
-    // Определяем начальный роут на основе статуса регистрации
-    const initialRoute: TelegramRoute = isRegistered ? 'dashboard' : 'registration';
+    // Проверяем Telegram WebApp deep link
+    let initialRoute: TelegramRoute = 'dashboard';
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initDataUnsafe?.start_param) {
+      const startParam = window.Telegram.WebApp.initDataUnsafe.start_param;
+      const validRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'analytics', 'advanced-analytics'];
+      if (validRoutes.includes(startParam as TelegramRoute)) {
+        initialRoute = startParam as TelegramRoute;
+      }
+    }
     
     setNavigation({
       currentRoute: initialRoute,
@@ -41,23 +53,21 @@ export const useTelegramNavigation = () => {
       isInitialized: true
     });
 
-    console.log('Navigation initialized:', { initialRoute, isRegistered, registrationStatus });
+    console.log('Navigation initialized for registered user:', { initialRoute, isRegistered });
   }, [isRegistered, registrationStatus, navigation.isInitialized]);
 
   const navigate = useCallback((route: TelegramRoute, params?: Record<string, any>) => {
-    // Защищенные роуты - требуют регистрации
-    const protectedRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'advanced-analytics', 'lesson-detail', 'subscription', 'payment-success'];
-    
-    if (protectedRoutes.includes(route) && !isRegistered) {
-      console.warn('Попытка доступа к защищенному роуту без регистрации');
+    // Навигация доступна только зарегистрированным пользователям
+    if (!isRegistered) {
+      console.warn('Navigation blocked: user not registered');
       return;
     }
 
     // Проверка на существование роута
-    const validRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'advanced-analytics', 'lesson-detail', 'registration', 'subscription', 'payment-success', 'not-found'];
+    const validRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'advanced-analytics', 'lesson-detail', 'subscription', 'payment-success', 'not-found'];
     
     if (!validRoutes.includes(route)) {
-      console.warn('Неизвестный роут:', route, 'Перенаправление на not-found');
+      console.warn('Unknown route:', route, 'Redirecting to not-found');
       route = 'not-found';
     }
 
@@ -81,15 +91,17 @@ export const useTelegramNavigation = () => {
   }, [hapticFeedback, showBackButton, hideBackButton, isRegistered]);
 
   const goBack = useCallback(() => {
+    if (!isRegistered) {
+      return;
+    }
+
     hapticFeedback('light');
     
     setNavigation(prev => {
       const newHistory = [...prev.history];
       newHistory.pop(); // Удаляем текущую страницу
       
-      const previousPage = newHistory[newHistory.length - 1] || { 
-        route: isRegistered ? 'dashboard' : 'registration' 
-      };
+      const previousPage = newHistory[newHistory.length - 1] || { route: 'dashboard' };
       
       if (previousPage.route === 'dashboard') {
         hideBackButton();
@@ -110,6 +122,6 @@ export const useTelegramNavigation = () => {
     navigate,
     goBack,
     canGoBack: navigation.history.length > 1,
-    isNavigationReady: navigation.isInitialized
+    isNavigationReady: navigation.isInitialized && isRegistered
   };
 };

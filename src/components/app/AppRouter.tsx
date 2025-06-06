@@ -23,6 +23,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentRoute, params, isLoading =
     return <AppLoader />;
   }
 
+  console.log('AppRouter: rendering route', currentRoute, 'with params', params);
+
   switch (currentRoute) {
     case '/':
     case '/dashboard':
@@ -58,7 +60,10 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentRoute, params, isLoading =
       return <PaymentSuccess />;
     
     case 'not-found':
+      return <NotFound />;
+    
     default:
+      console.warn('AppRouter: Unknown route', currentRoute, 'redirecting to NotFound');
       return <NotFound />;
   }
 };
