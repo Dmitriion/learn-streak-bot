@@ -42,4 +42,4 @@ class TelegramCloudStorage extends CloudStorageBase {
 }
 
 export default TelegramCloudStorage;
-export { CloudStorageData } from './storage/types';
+export type { CloudStorageData } from './storage/types';
