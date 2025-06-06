@@ -1,20 +1,8 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import AuthService, { TelegramUser, AuthState } from '../services/AuthService';
+import UserRegistrationService from '../services/UserRegistrationService';
 
-interface TelegramUser {
-  id: number;
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  language_code?: string;
-  is_premium?: boolean;
-  photo_url?: string;
-}
-
-interface TelegramContextType {
-  user: TelegramUser | null;
-  isReady: boolean;
-  theme: 'light' | 'dark';
+interface TelegramContextType extends AuthState {
   showMainButton: (text: string, onClick: () => void) => void;
   hideMainButton: () => void;
   showBackButton: (onClick: () => void) => void;
@@ -24,6 +12,9 @@ interface TelegramContextType {
   showConfirm: (message: string, callback: (confirmed: boolean) => void) => void;
   expand: () => void;
   ready: () => void;
+  theme: 'light' | 'dark';
+  registerUser: (fullName: string) => Promise<void>;
+  setWebhookUrl: (url: string) => void;
 }
 
 const TelegramContext = createContext<TelegramContextType | null>(null);
@@ -33,9 +24,17 @@ interface TelegramProviderProps {
 }
 
 export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<TelegramUser | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const [authState, setAuthState] = useState<AuthState>({
+    isAuthenticated: false,
+    isRegistered: false,
+    user: null,
+    registrationStatus: 'idle'
+  });
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [isReady, setIsReady] = useState(false);
+
+  const authService = AuthService.getInstance();
+  const registrationService = UserRegistrationService.getInstance();
 
   useEffect(() => {
     // Инициализация Telegram Web App
@@ -45,11 +44,6 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
       WebApp.ready();
       WebApp.expand();
       
-      // Получаем данные пользователя
-      if (WebApp.initDataUnsafe?.user) {
-        setUser(WebApp.initDataUnsafe.user as TelegramUser);
-      }
-      
       // Устанавливаем тему
       setTheme(WebApp.colorScheme as 'light' | 'dark');
       
@@ -58,20 +52,72 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
         setTheme(WebApp.colorScheme as 'light' | 'dark');
       });
       
+      // Аутентификация пользователя
+      if (WebApp.initDataUnsafe?.user) {
+        const telegramUser = WebApp.initDataUnsafe.user as TelegramUser;
+        handleAuthentication(telegramUser);
+      }
+      
       setIsReady(true);
     } else {
       // Фоллбэк для разработки вне Telegram
       console.warn('Telegram Web App не доступен, используем тестовые данные');
-      setUser({
+      const testUser: TelegramUser = {
         id: 12345,
         first_name: 'Анна',
         last_name: 'Петрова',
         username: 'anna_petrova',
         language_code: 'ru'
-      });
+      };
+      handleAuthentication(testUser);
       setIsReady(true);
     }
   }, []);
+
+  const handleAuthentication = async (telegramUser: TelegramUser) => {
+    setAuthState(prev => ({ ...prev, registrationStatus: 'checking' }));
+    
+    try {
+      const newAuthState = await authService.authenticateUser(telegramUser);
+      setAuthState(newAuthState);
+      
+      // Обновляем активность пользователя
+      if (newAuthState.isRegistered) {
+        await registrationService.updateUserActivity(telegramUser.id.toString());
+      }
+    } catch (error) {
+      console.error('Ошибка аутентификации:', error);
+      setAuthState({
+        isAuthenticated: false,
+        isRegistered: false,
+        user: null,
+        registrationStatus: 'error',
+        error: 'Ошибка при загрузке профиля'
+      });
+    }
+  };
+
+  const registerUser = async (fullName: string) => {
+    if (!authState.user) return;
+
+    setAuthState(prev => ({ ...prev, registrationStatus: 'registering' }));
+    
+    try {
+      const newAuthState = await authService.registerUser(authState.user, fullName);
+      setAuthState(newAuthState);
+    } catch (error) {
+      console.error('Ошибка регистрации:', error);
+      setAuthState(prev => ({
+        ...prev,
+        registrationStatus: 'error',
+        error: 'Ошибка при регистрации'
+      }));
+    }
+  };
+
+  const setWebhookUrl = (url: string) => {
+    registrationService.setWebhookUrl(url);
+  };
 
   const showMainButton = (text: string, onClick: () => void) => {
     if (window.Telegram?.WebApp?.MainButton) {
@@ -137,7 +183,7 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
   };
 
   const value: TelegramContextType = {
-    user,
+    ...authState,
     isReady,
     theme,
     showMainButton,
@@ -148,7 +194,9 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
     showAlert,
     showConfirm,
     expand,
-    ready
+    ready,
+    registerUser,
+    setWebhookUrl
   };
 
   return (

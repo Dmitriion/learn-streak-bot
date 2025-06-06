@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { useTelegram } from '../providers/TelegramProvider';
 
-export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'lesson-detail';
+export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'lesson-detail' | 'registration';
 
 interface NavigationState {
   currentRoute: TelegramRoute;
@@ -11,14 +11,22 @@ interface NavigationState {
 }
 
 export const useTelegramNavigation = () => {
-  const { showBackButton, hideBackButton, hapticFeedback } = useTelegram();
+  const { showBackButton, hideBackButton, hapticFeedback, isRegistered } = useTelegram();
   
   const [navigation, setNavigation] = useState<NavigationState>({
-    currentRoute: 'dashboard',
-    history: [{ route: 'dashboard' }]
+    currentRoute: isRegistered ? 'dashboard' : 'registration',
+    history: [{ route: isRegistered ? 'dashboard' : 'registration' }]
   });
 
   const navigate = useCallback((route: TelegramRoute, params?: Record<string, any>) => {
+    // Защищенные роуты - требуют регистрации
+    const protectedRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'lesson-detail'];
+    
+    if (protectedRoutes.includes(route) && !isRegistered) {
+      console.warn('Попытка доступа к защищенному роуту без регистрации');
+      return;
+    }
+
     hapticFeedback('light');
     
     setNavigation(prev => ({
@@ -27,13 +35,13 @@ export const useTelegramNavigation = () => {
       history: [...prev.history, { route, params }]
     }));
 
-    // Показываем кнопку "Назад" если не на главной странице
-    if (route !== 'dashboard') {
+    // Показываем кнопку "Назад" если не на главной странице и не на регистрации
+    if (route !== 'dashboard' && route !== 'registration') {
       showBackButton(() => goBack());
     } else {
       hideBackButton();
     }
-  }, [hapticFeedback, showBackButton, hideBackButton]);
+  }, [hapticFeedback, showBackButton, hideBackButton, isRegistered]);
 
   const goBack = useCallback(() => {
     hapticFeedback('light');
@@ -42,9 +50,11 @@ export const useTelegramNavigation = () => {
       const newHistory = [...prev.history];
       newHistory.pop(); // Удаляем текущую страницу
       
-      const previousPage = newHistory[newHistory.length - 1] || { route: 'dashboard' };
+      const previousPage = newHistory[newHistory.length - 1] || { 
+        route: isRegistered ? 'dashboard' : 'registration' 
+      };
       
-      if (previousPage.route === 'dashboard') {
+      if (previousPage.route === 'dashboard' || previousPage.route === 'registration') {
         hideBackButton();
       }
       
@@ -54,7 +64,7 @@ export const useTelegramNavigation = () => {
         history: newHistory
       };
     });
-  }, [hapticFeedback, hideBackButton]);
+  }, [hapticFeedback, hideBackButton, isRegistered]);
 
   return {
     currentRoute: navigation.currentRoute,
