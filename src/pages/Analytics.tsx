@@ -5,10 +5,10 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Clock, Trophy, Target, BookOpen, Calendar, ArrowLeft, Award, BarChart3 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useTelegramNavigation } from '../hooks/useTelegramNavigation';
 
 const Analytics = () => {
-  const navigate = useNavigate();
+  const { navigate } = useTelegramNavigation();
 
   // Данные для графиков
   const progressData = [
@@ -65,7 +65,7 @@ const Analytics = () => {
           </div>
           <div className="flex items-center gap-3">
             <Button
-              onClick={() => navigate('/advanced-analytics')}
+              onClick={() => navigate('advanced-analytics')}
               className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
             >
               <BarChart3 className="h-4 w-4" />
@@ -73,7 +73,7 @@ const Analytics = () => {
             </Button>
             <Button
               variant="outline"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('dashboard')}
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
