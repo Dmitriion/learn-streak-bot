@@ -14,6 +14,33 @@ export const useTelegramWebApp = () => {
   const logger = LoggingService.getInstance();
   const initializationRef = useRef(false);
 
+  // Создаем обработчики событий как useCallback для стабильности ссылок
+  const handleThemeChanged = useCallback(() => {
+    if (window.Telegram?.WebApp) {
+      const newTheme = window.Telegram.WebApp.colorScheme as 'light' | 'dark';
+      setTheme(newTheme);
+      logger.debug('Тема изменена', { theme: newTheme });
+    }
+  }, [logger]);
+
+  const handleViewportChanged = useCallback(() => {
+    if (window.Telegram?.WebApp) {
+      const WebApp = window.Telegram.WebApp;
+      const height = (WebApp as any).viewportHeight || window.innerHeight;
+      const expanded = (WebApp as any).isExpanded || false;
+      setViewportHeight(height);
+      setIsExpanded(expanded);
+      logger.debug('Viewport изменен', { height, expanded });
+      
+      // Обновляем CSS переменные для адаптивности
+      document.documentElement.style.setProperty('--tg-viewport-height', `${height}px`);
+    }
+  }, [logger]);
+
+  const handleSettingsButtonClicked = useCallback(() => {
+    logger.info('Кнопка настроек нажата', {});
+  }, [logger]);
+
   useEffect(() => {
     if (initializationRef.current) return;
     initializationRef.current = true;
@@ -32,29 +59,10 @@ export const useTelegramWebApp = () => {
       setViewportHeight((WebApp as any).viewportHeight || window.innerHeight);
       setIsExpanded((WebApp as any).isExpanded || false);
       
-      // Event listeners с fallback обработкой
-      WebApp.onEvent('themeChanged', () => {
-        const newTheme = WebApp.colorScheme as 'light' | 'dark';
-        setTheme(newTheme);
-        logger.debug('Тема изменена', { theme: newTheme });
-      });
-      
-      // Обработка viewport изменений
-      WebApp.onEvent('viewportChanged', () => {
-        const height = (WebApp as any).viewportHeight || window.innerHeight;
-        const expanded = (WebApp as any).isExpanded || false;
-        setViewportHeight(height);
-        setIsExpanded(expanded);
-        logger.debug('Viewport изменен', { height, expanded });
-        
-        // Обновляем CSS переменные для адаптивности
-        document.documentElement.style.setProperty('--tg-viewport-height', `${height}px`);
-      });
-
-      // Lifecycle events
-      WebApp.onEvent('settingsButtonClicked', () => {
-        logger.info('Кнопка настроек нажата', {});
-      });
+      // Event listeners с правильными аргументами
+      WebApp.onEvent('themeChanged', handleThemeChanged);
+      WebApp.onEvent('viewportChanged', handleViewportChanged);
+      WebApp.onEvent('settingsButtonClicked', handleSettingsButtonClicked);
 
       // Closing confirmation с проверкой поддержки
       if ((WebApp as any).enableClosingConfirmation) {
@@ -74,15 +82,16 @@ export const useTelegramWebApp = () => {
       document.documentElement.style.setProperty('--tg-viewport-height', `${mockViewportHeight}px`);
     }
 
-    // Cleanup function
+    // Cleanup function с правильными аргументами
     return () => {
       if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.offEvent('themeChanged');
-        window.Telegram.WebApp.offEvent('viewportChanged');
-        window.Telegram.WebApp.offEvent('settingsButtonClicked');
+        const WebApp = window.Telegram.WebApp;
+        WebApp.offEvent('themeChanged', handleThemeChanged);
+        WebApp.offEvent('viewportChanged', handleViewportChanged);
+        WebApp.offEvent('settingsButtonClicked', handleSettingsButtonClicked);
       }
     };
-  }, []);
+  }, [handleThemeChanged, handleViewportChanged, handleSettingsButtonClicked, logger]);
 
   const showMainButton = useCallback((text: string, onClick: () => void) => {
     if (window.Telegram?.WebApp?.MainButton) {
@@ -92,14 +101,14 @@ export const useTelegramWebApp = () => {
       MainButton.onClick(onClick);
       logger.debug('MainButton показана', { text });
     }
-  }, []);
+  }, [logger]);
 
   const hideMainButton = useCallback(() => {
     if (window.Telegram?.WebApp?.MainButton) {
       window.Telegram.WebApp.MainButton.hide();
       logger.debug('MainButton скрыта', {});
     }
-  }, []);
+  }, [logger]);
 
   const showBackButton = useCallback((onClick: () => void) => {
     if (window.Telegram?.WebApp?.BackButton) {
@@ -108,21 +117,21 @@ export const useTelegramWebApp = () => {
       BackButton.onClick(onClick);
       logger.debug('BackButton показана', {});
     }
-  }, []);
+  }, [logger]);
 
   const hideBackButton = useCallback(() => {
     if (window.Telegram?.WebApp?.BackButton) {
       window.Telegram.WebApp.BackButton.hide();
       logger.debug('BackButton скрыта', {});
     }
-  }, []);
+  }, [logger]);
 
   const hapticFeedback = useCallback((type: 'light' | 'medium' | 'heavy') => {
     if (window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.impactOccurred(type);
       logger.debug('Haptic feedback', { type });
     }
-  }, []);
+  }, [logger]);
 
   const showAlert = useCallback((message: string) => {
     if (window.Telegram?.WebApp?.showAlert) {
@@ -131,7 +140,7 @@ export const useTelegramWebApp = () => {
       alert(message);
     }
     logger.debug('Alert показан', { message });
-  }, []);
+  }, [logger]);
 
   const showConfirm = useCallback((message: string, callback: (confirmed: boolean) => void) => {
     if (window.Telegram?.WebApp?.showConfirm) {
@@ -140,21 +149,21 @@ export const useTelegramWebApp = () => {
       callback(confirm(message));
     }
     logger.debug('Confirm показан', { message });
-  }, []);
+  }, [logger]);
 
   const expand = useCallback(() => {
     if (window.Telegram?.WebApp?.expand) {
       window.Telegram.WebApp.expand();
       logger.debug('WebApp развернут', {});
     }
-  }, []);
+  }, [logger]);
 
   const ready = useCallback(() => {
     if (window.Telegram?.WebApp?.ready) {
       window.Telegram.WebApp.ready();
       logger.debug('WebApp готов', {});
     }
-  }, []);
+  }, [logger]);
 
   // Новые методы для улучшенного UX с проверкой поддержки
   const enableClosingConfirmation = useCallback(() => {
@@ -163,7 +172,7 @@ export const useTelegramWebApp = () => {
       setIsClosingConfirmationEnabled(true);
       logger.debug('Подтверждение закрытия включено', {});
     }
-  }, []);
+  }, [logger]);
 
   const disableClosingConfirmation = useCallback(() => {
     if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).disableClosingConfirmation) {
@@ -171,21 +180,21 @@ export const useTelegramWebApp = () => {
       setIsClosingConfirmationEnabled(false);
       logger.debug('Подтверждение закрытия отключено', {});
     }
-  }, []);
+  }, [logger]);
 
   const openTelegramLink = useCallback((url: string) => {
     if (window.Telegram?.WebApp?.openTelegramLink) {
       window.Telegram.WebApp.openTelegramLink(url);
       logger.debug('Telegram ссылка открыта', { url });
     }
-  }, []);
+  }, [logger]);
 
   const openInvoice = useCallback((url: string, callback?: (status: string) => void) => {
     if (window.Telegram?.WebApp?.openInvoice) {
       window.Telegram.WebApp.openInvoice(url, callback);
       logger.debug('Invoice открыт', { url });
     }
-  }, []);
+  }, [logger]);
 
   // Методы для работы с CloudStorage
   const saveToCloud = useCallback(async (key: string, data: any) => {
