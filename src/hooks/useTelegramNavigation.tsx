@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { useTelegram } from '../providers/TelegramProvider';
 
-export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'lesson-detail' | 'registration' | 'subscription' | 'payment-success' | 'not-found';
+export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'advanced-analytics' | 'lesson-detail' | 'registration' | 'subscription' | 'payment-success' | 'not-found';
 
 interface NavigationState {
   currentRoute: TelegramRoute;
@@ -20,7 +20,7 @@ export const useTelegramNavigation = () => {
 
   const navigate = useCallback((route: TelegramRoute, params?: Record<string, any>) => {
     // Защищенные роуты - требуют регистрации
-    const protectedRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'lesson-detail', 'subscription', 'payment-success'];
+    const protectedRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'advanced-analytics', 'lesson-detail', 'subscription', 'payment-success'];
     
     if (protectedRoutes.includes(route) && !isRegistered) {
       console.warn('Попытка доступа к защищенному роуту без регистрации');
@@ -28,7 +28,7 @@ export const useTelegramNavigation = () => {
     }
 
     // Проверка на существование роута
-    const validRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'lesson-detail', 'registration', 'subscription', 'payment-success', 'not-found'];
+    const validRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'advanced-analytics', 'lesson-detail', 'registration', 'subscription', 'payment-success', 'not-found'];
     
     if (!validRoutes.includes(route)) {
       console.warn('Неизвестный роут:', route, 'Перенаправление на not-found');
