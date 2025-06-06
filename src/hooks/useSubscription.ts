@@ -1,7 +1,8 @@
 
 import { useState, useEffect } from 'react';
 import { useTelegram } from '../providers/TelegramProvider';
-import PaymentService, { SubscriptionStatus } from '../services/PaymentService';
+import PaymentService from '../services/PaymentService';
+import { SubscriptionStatus } from '../schemas/validation';
 
 export const useSubscription = () => {
   const { user } = useTelegram();
