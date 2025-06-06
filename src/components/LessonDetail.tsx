@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +5,7 @@ import { CheckCircle, Clock, Play } from 'lucide-react';
 import { useTelegram } from '../providers/TelegramProvider';
 import { useTelegramNavigation } from '../hooks/useTelegramNavigation';
 
-interface LessonDetailProps {
+export interface LessonDetailProps {
   lessonId?: number;
 }
 
