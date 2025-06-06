@@ -1,3 +1,4 @@
+
 import { SubscriptionPlan, PaymentData, PaymentResponse, SubscriptionStatus } from '../schemas/validation';
 import YOUCasaProvider from './YOUCasaProvider';
 import RobocasaProvider from './RobocasaProvider';
@@ -18,11 +19,22 @@ class PaymentService {
 
   constructor() {
     this.providers = new Map();
-    this.providers.set('youkassa', new YOUCasaProvider());
-    this.providers.set('robocasa', new RobocasaProvider());
     
-    this.plansProvider = PlansProvider.getInstance();
-    this.validator = PaymentValidator.getInstance();
+    // Инициализируем провайдеры с тестовыми конфигурациями
+    this.providers.set('youkassa', new YOUCasaProvider({
+      shopId: process.env.YOUKASSA_SHOP_ID || 'test_shop_id',
+      secretKey: process.env.YOUKASSA_SECRET_KEY || 'test_secret_key',
+      testMode: true
+    }));
+    
+    this.providers.set('robocasa', new RobocasaProvider({
+      merchantId: process.env.ROBOCASA_MERCHANT_ID || 'test_merchant_id',
+      secretKey: process.env.ROBOCASA_SECRET_KEY || 'test_secret_key',
+      testMode: true
+    }));
+    
+    this.plansProvider = new PlansProvider();
+    this.validator = new PaymentValidator();
     this.automationManager = AutomationManager.getInstance();
     this.errorService = ErrorService.getInstance();
     this.logger = LoggingService.getInstance();

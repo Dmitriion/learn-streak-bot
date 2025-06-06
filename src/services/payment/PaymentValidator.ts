@@ -8,6 +8,7 @@ import {
 } from '../../schemas/validation';
 
 class PaymentValidator {
+  private static instance: PaymentValidator;
   private errorService: ErrorService;
   private readonly ALLOWED_PAYMENT_DOMAINS = [
     'yookassa.ru',
@@ -18,6 +19,13 @@ class PaymentValidator {
 
   constructor() {
     this.errorService = ErrorService.getInstance();
+  }
+
+  static getInstance(): PaymentValidator {
+    if (!PaymentValidator.instance) {
+      PaymentValidator.instance = new PaymentValidator();
+    }
+    return PaymentValidator.instance;
   }
 
   validatePaymentData(data: PaymentData) {
