@@ -1,8 +1,7 @@
-
 import { useState, useCallback } from 'react';
 import { useTelegram } from '../providers/TelegramProvider';
 
-export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'lesson-detail' | 'registration';
+export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'lesson-detail' | 'registration' | 'subscription' | 'payment-success';
 
 interface NavigationState {
   currentRoute: TelegramRoute;
@@ -20,7 +19,7 @@ export const useTelegramNavigation = () => {
 
   const navigate = useCallback((route: TelegramRoute, params?: Record<string, any>) => {
     // Защищенные роуты - требуют регистрации
-    const protectedRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'lesson-detail'];
+    const protectedRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'lesson-detail', 'subscription', 'payment-success'];
     
     if (protectedRoutes.includes(route) && !isRegistered) {
       console.warn('Попытка доступа к защищенному роуту без регистрации');

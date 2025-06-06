@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useTelegram } from './providers/TelegramProvider';
 import { useTelegramNavigation } from './hooks/useTelegramNavigation';
@@ -8,6 +7,8 @@ import Test from './pages/Test';
 import Analytics from './pages/Analytics';
 import LessonDetail from './components/LessonDetail';
 import Registration from './components/Registration';
+import Subscription from './components/Subscription';
+import PaymentSuccess from './components/PaymentSuccess';
 
 const TelegramApp = () => {
   const { 
@@ -101,6 +102,10 @@ const TelegramApp = () => {
         return <Analytics />;
       case 'lesson-detail':
         return <LessonDetail lessonId={params?.lessonId} />;
+      case 'subscription':
+        return <Subscription />;
+      case 'payment-success':
+        return <PaymentSuccess paymentId={params?.paymentId} planName={params?.planName} />;
       default:
         return <Dashboard />;
     }

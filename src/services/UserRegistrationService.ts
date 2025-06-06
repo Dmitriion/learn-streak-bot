@@ -1,4 +1,3 @@
-
 export interface UserRegistrationData {
   user_id: string;
   username?: string;
@@ -7,6 +6,9 @@ export interface UserRegistrationData {
   current_lesson: number;
   last_activity: string;
   score: number;
+  subscription_status?: 'free' | 'premium' | 'vip';
+  subscription_expires?: string;
+  payment_provider?: string;
   telegram_data?: any;
 }
 
@@ -14,6 +16,7 @@ export interface N8NWebhookResponse {
   success: boolean;
   message?: string;
   user_exists?: boolean;
+  subscription_status?: any;
 }
 
 class UserRegistrationService {
@@ -42,6 +45,7 @@ class UserRegistrationService {
         },
         body: JSON.stringify({
           ...userData,
+          subscription_status: 'free', // По умолчанию бесплатная подписка
           timestamp: new Date().toISOString(),
           action: 'register'
         }),
@@ -57,7 +61,8 @@ class UserRegistrationService {
       return {
         success: true,
         message: result.message || 'Регистрация успешна',
-        user_exists: result.user_exists || false
+        user_exists: result.user_exists || false,
+        subscription_status: result.subscription_status
       };
     } catch (error) {
       console.error('Ошибка регистрации пользователя:', error);
@@ -90,7 +95,8 @@ class UserRegistrationService {
       return {
         success: true,
         user_exists: result.user_exists || false,
-        message: result.message
+        message: result.message,
+        subscription_status: result.subscription_status
       };
     } catch (error) {
       console.error('Ошибка проверки пользователя:', error);
@@ -116,6 +122,39 @@ class UserRegistrationService {
       });
     } catch (error) {
       console.error('Ошибка обновления активности:', error);
+    }
+  }
+
+  async updateSubscription(userId: string, subscriptionData: any): Promise<N8NWebhookResponse> {
+    try {
+      const response = await fetch(`${this.baseWebhookUrl}/webhook/subscription/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          ...subscriptionData,
+          timestamp: new Date().toISOString(),
+          action: 'update_subscription'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: result.message || 'Подписка обновлена'
+      };
+    } catch (error) {
+      console.error('Ошибка обновления подписки:', error);
+      return {
+        success: false,
+        message: 'Ошибка при обновлении подписки'
+      };
     }
   }
 }
