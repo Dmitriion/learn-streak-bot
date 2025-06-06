@@ -2,33 +2,46 @@
 import { TelegramUser, AuthState, UserRegistrationData } from './types';
 import { AuthValidator } from './AuthValidator';
 import UserRegistrationService from '../UserRegistrationService';
+import AutomationManager from '../automation/AutomationManager';
 import ErrorService from '../ErrorService';
 import LoggingService from '../LoggingService';
 
 export class UserRegistrationManager {
   private validator: AuthValidator;
   private registrationService: UserRegistrationService;
+  private automationManager: AutomationManager;
   private errorService: ErrorService;
   private logger: LoggingService;
 
   constructor() {
     this.validator = new AuthValidator();
     this.registrationService = UserRegistrationService.getInstance();
+    this.automationManager = AutomationManager.getInstance();
     this.errorService = ErrorService.getInstance();
     this.logger = LoggingService.getInstance();
   }
 
   async registerUser(telegramUser: TelegramUser, fullName: string): Promise<AuthState> {
-    this.logger.info('Начало регистрации пользователя', { 
-      userId: telegramUser.id,
-      fullNameLength: fullName.length 
-    });
+    this.logger.info('Начало регистрации пользователя', { userId: telegramUser.id, fullName });
     
     try {
-      const userData: UserRegistrationData = {
+      // Валидация данных пользователя
+      const validation = this.validator.validateTelegramUserData(telegramUser);
+      if (!validation.isValid) {
+        return {
+          isAuthenticated: false,
+          isRegistered: false,
+          user: null,
+          registrationStatus: 'error',
+          error: validation.error
+        };
+      }
+
+      // Подготовка данных для регистрации
+      const registrationData: UserRegistrationData = {
         user_id: telegramUser.id.toString(),
         username: telegramUser.username,
-        full_name: fullName.trim(),
+        full_name: fullName,
         course_status: 'not_started',
         current_lesson: 0,
         last_activity: new Date().toISOString(),
@@ -37,65 +50,56 @@ export class UserRegistrationManager {
       };
 
       // Валидация данных регистрации
-      const validation = this.validator.validateRegistrationData(userData);
-      if (!validation.isValid) {
+      const dataValidation = this.validator.validateRegistrationData(registrationData);
+      if (!dataValidation.isValid) {
         return {
-          isAuthenticated: true,
+          isAuthenticated: false,
           isRegistered: false,
-          user: telegramUser,
+          user: null,
           registrationStatus: 'error',
-          error: validation.error
+          error: dataValidation.error
         };
       }
 
-      // Регистрация с retry механизмом
-      const result = await this.errorService.withRetry(
-        () => this.registrationService.registerUser(userData),
-        3,
-        1000,
-        'network'
-      );
+      // Регистрация пользователя в системе
+      const registrationResult = await this.registrationService.registerUser(registrationData);
       
-      if (result.success) {
-        this.logger.info('Пользователь успешно зарегистрирован', { userId: telegramUser.id });
-        
+      if (!registrationResult.success) {
         return {
-          isAuthenticated: true,
-          isRegistered: true,
-          user: telegramUser,
-          registrationStatus: 'success'
-        };
-      } else {
-        const error = this.errorService.handleError({
-          category: 'auth',
-          message: `Ошибка регистрации: ${result.message}`,
-          context: { userId: telegramUser.id },
-          recoverable: true
-        });
-
-        return {
-          isAuthenticated: true,
+          isAuthenticated: false,
           isRegistered: false,
-          user: telegramUser,
+          user: null,
           registrationStatus: 'error',
-          error: result.message
+          error: registrationResult.message || 'Ошибка регистрации'
         };
       }
+
+      // Триггер автоматизации для новой регистрации
+      await this.automationManager.onUserRegistered(telegramUser, fullName);
+
+      this.logger.info('Пользователь успешно зарегистрирован', { userId: telegramUser.id });
+
+      return {
+        isAuthenticated: true,
+        isRegistered: true,
+        user: telegramUser,
+        registrationStatus: 'success'
+      };
     } catch (error) {
       const appError = this.errorService.handleError({
         category: 'auth',
-        message: 'Критическая ошибка при регистрации',
+        message: 'Ошибка регистрации пользователя',
         originalError: error as Error,
-        context: { userId: telegramUser.id },
+        context: { userId: telegramUser.id, fullName },
         recoverable: true
       });
 
       return {
-        isAuthenticated: true,
+        isAuthenticated: false,
         isRegistered: false,
-        user: telegramUser,
+        user: null,
         registrationStatus: 'error',
-        error: 'Ошибка при регистрации'
+        error: 'Ошибка при регистрации пользователя'
       };
     }
   }

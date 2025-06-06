@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import AuthService, { TelegramUser, AuthState } from '../services/AuthService';
 import UserRegistrationService from '../services/UserRegistrationService';
+import AutomationManager from '../services/automation/AutomationManager';
 
 export const useTelegramAuth = () => {
   const [authState, setAuthState] = useState<AuthState>({
@@ -13,6 +14,7 @@ export const useTelegramAuth = () => {
 
   const authService = AuthService.getInstance();
   const registrationService = UserRegistrationService.getInstance();
+  const automationManager = AutomationManager.getInstance();
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
@@ -75,6 +77,7 @@ export const useTelegramAuth = () => {
 
   const setWebhookUrl = (url: string) => {
     registrationService.setWebhookUrl(url);
+    automationManager.setN8NWebhookUrl(url);
   };
 
   return {
