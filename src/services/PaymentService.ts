@@ -1,4 +1,3 @@
-
 import ErrorService from './ErrorService';
 import LoggingService from './LoggingService';
 import { 
@@ -14,6 +13,41 @@ export interface PaymentProvider {
   id: 'youkassa' | 'robocasa';
   name: string;
   available: boolean;
+}
+
+export interface PaymentData {
+  user_id: string;
+  plan_id: string;
+  amount: number;
+  currency: 'RUB' | 'USD' | 'EUR';
+  provider: 'youkassa' | 'robocasa';
+  return_url?: string;
+}
+
+export interface PaymentResponse {
+  success: boolean;
+  payment_id?: string;
+  payment_url?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface SubscriptionStatus {
+  is_active: boolean;
+  plan_id: string;
+  expires_at: string;
+  provider: 'youkassa' | 'robocasa';
+  auto_renew: boolean;
+}
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  currency: 'RUB' | 'USD' | 'EUR';
+  duration: number;
+  features: string[];
+  popular?: boolean;
 }
 
 class PaymentService {
