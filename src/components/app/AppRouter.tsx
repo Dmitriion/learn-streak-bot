@@ -8,14 +8,22 @@ import AdvancedAnalytics from '../../pages/AdvancedAnalytics';
 import LessonDetail from '../LessonDetail';
 import Subscription from '../Subscription';
 import PaymentSuccess from '../PaymentSuccess';
+import Registration from '../Registration';
 import NotFound from '../../pages/NotFound';
+import AppLoader from './AppLoader';
 
 interface AppRouterProps {
   currentRoute: string;
   params: Record<string, string>;
+  isLoading?: boolean;
 }
 
-const AppRouter: React.FC<AppRouterProps> = ({ currentRoute, params }) => {
+const AppRouter: React.FC<AppRouterProps> = ({ currentRoute, params, isLoading = false }) => {
+  // Показываем загрузчик во время инициализации
+  if (isLoading) {
+    return <AppLoader />;
+  }
+
   switch (currentRoute) {
     case '/':
     case '/dashboard':
@@ -41,6 +49,10 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentRoute, params }) => {
     case '/advanced-analytics':
     case 'advanced-analytics':
       return <AdvancedAnalytics />;
+    
+    case '/registration':
+    case 'registration':
+      return <Registration onRegistrationComplete={() => {}} />;
     
     case '/subscription':
     case 'subscription':

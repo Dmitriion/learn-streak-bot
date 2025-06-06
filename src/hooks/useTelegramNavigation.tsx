@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTelegram } from '../providers/TelegramProvider';
 
 export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'advanced-analytics' | 'lesson-detail' | 'registration' | 'subscription' | 'payment-success' | 'not-found';
@@ -8,15 +8,34 @@ interface NavigationState {
   currentRoute: TelegramRoute;
   params?: Record<string, any>;
   history: Array<{ route: TelegramRoute; params?: Record<string, any> }>;
+  isInitialized: boolean;
 }
 
 export const useTelegramNavigation = () => {
-  const { showBackButton, hideBackButton, hapticFeedback, isRegistered } = useTelegram();
+  const { showBackButton, hideBackButton, hapticFeedback, isRegistered, registrationStatus } = useTelegram();
   
   const [navigation, setNavigation] = useState<NavigationState>({
-    currentRoute: isRegistered ? 'dashboard' : 'registration',
-    history: [{ route: isRegistered ? 'dashboard' : 'registration' }]
+    currentRoute: 'dashboard', // Начальное значение по умолчанию
+    history: [],
+    isInitialized: false
   });
+
+  // Инициализация роута на основе состояния регистрации
+  useEffect(() => {
+    if (registrationStatus === 'checking' || navigation.isInitialized) {
+      return; // Не инициализируем пока идет проверка или уже инициализировано
+    }
+
+    const initialRoute: TelegramRoute = isRegistered ? 'dashboard' : 'registration';
+    
+    setNavigation({
+      currentRoute: initialRoute,
+      history: [{ route: initialRoute }],
+      isInitialized: true
+    });
+
+    console.log('Navigation initialized:', { initialRoute, isRegistered, registrationStatus });
+  }, [isRegistered, registrationStatus, navigation.isInitialized]);
 
   const navigate = useCallback((route: TelegramRoute, params?: Record<string, any>) => {
     // Защищенные роуты - требуют регистрации
@@ -38,6 +57,7 @@ export const useTelegramNavigation = () => {
     hapticFeedback('light');
     
     setNavigation(prev => ({
+      ...prev,
       currentRoute: route,
       params,
       history: [...prev.history, { route, params }]
@@ -49,6 +69,8 @@ export const useTelegramNavigation = () => {
     } else {
       hideBackButton();
     }
+
+    console.log('Navigated to:', route, params);
   }, [hapticFeedback, showBackButton, hideBackButton, isRegistered]);
 
   const goBack = useCallback(() => {
@@ -67,6 +89,7 @@ export const useTelegramNavigation = () => {
       }
       
       return {
+        ...prev,
         currentRoute: previousPage.route,
         params: previousPage.params,
         history: newHistory
@@ -79,6 +102,7 @@ export const useTelegramNavigation = () => {
     params: navigation.params,
     navigate,
     goBack,
-    canGoBack: navigation.history.length > 1
+    canGoBack: navigation.history.length > 1,
+    isNavigationReady: navigation.isInitialized
   };
 };

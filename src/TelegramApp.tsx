@@ -20,17 +20,18 @@ const TelegramApp = () => {
     registerUser,
     viewportHeight
   } = useTelegram();
-  const { currentRoute, params } = useTelegramNavigation();
+  const { currentRoute, params, isNavigationReady } = useTelegramNavigation();
 
   useAppInitialization();
   useThemeAndViewport({ theme, viewportHeight });
 
-  if (!isReady || registrationStatus === 'checking') {
+  // Показываем загрузчик пока приложение не готово или идет проверка регистрации
+  if (!isReady || registrationStatus === 'checking' || !isNavigationReady) {
     return <AppLoader />;
   }
 
   // Если пользователь не зарегистрирован, показываем экран регистрации
-  if (isAuthenticated && !isRegistered) {
+  if (isAuthenticated && !isRegistered && currentRoute === 'registration') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
         <AppStyles theme={theme} viewportHeight={viewportHeight} />
@@ -46,7 +47,11 @@ const TelegramApp = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
       <AppStyles theme={theme} viewportHeight={viewportHeight} />
-      <AppRouter currentRoute={currentRoute} params={params} />
+      <AppRouter 
+        currentRoute={currentRoute} 
+        params={params} 
+        isLoading={registrationStatus === 'checking'}
+      />
     </div>
   );
 };

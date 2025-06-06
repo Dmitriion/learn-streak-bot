@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { UserPlus, Loader2 } from 'lucide-react';
 import { useTelegram } from '../providers/TelegramProvider';
+import { useTelegramNavigation } from '../hooks/useTelegramNavigation';
 
 interface RegistrationProps {
   onRegistrationComplete: (fullName: string) => void;
@@ -18,9 +19,17 @@ const Registration: React.FC<RegistrationProps> = ({
   isLoading = false, 
   error 
 }) => {
-  const { user, showMainButton, hideMainButton, hapticFeedback } = useTelegram();
+  const { user, showMainButton, hideMainButton, hapticFeedback, isRegistered } = useTelegram();
+  const { navigate } = useTelegramNavigation();
   const [fullName, setFullName] = useState('');
   const [isValid, setIsValid] = useState(false);
+
+  // Перенаправляем на dashboard если пользователь уже зарегистрирован
+  useEffect(() => {
+    if (isRegistered) {
+      navigate('dashboard');
+    }
+  }, [isRegistered, navigate]);
 
   useEffect(() => {
     // Предзаполняем имя из Telegram данных
@@ -44,10 +53,15 @@ const Registration: React.FC<RegistrationProps> = ({
     return () => hideMainButton();
   }, [fullName, isLoading, showMainButton, hideMainButton]);
 
-  const handleRegistration = () => {
+  const handleRegistration = async () => {
     if (isValid && !isLoading) {
       hapticFeedback('medium');
-      onRegistrationComplete(fullName.trim());
+      try {
+        await onRegistrationComplete(fullName.trim());
+        // После успешной регистрации навигация произойдет автоматически через useEffect выше
+      } catch (error) {
+        console.error('Ошибка регистрации:', error);
+      }
     }
   };
 
