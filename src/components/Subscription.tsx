@@ -79,8 +79,8 @@ const Subscription = () => {
 
       if (result.success && result.payment_url) {
         // Открываем платежную форму в Telegram
-        if (window.Telegram?.WebApp?.openTelegramLink) {
-          window.Telegram.WebApp.openTelegramLink(result.payment_url);
+        if (window.Telegram?.WebApp?.openLink) {
+          window.Telegram.WebApp.openLink(result.payment_url);
         } else {
           // Fallback для разработки
           window.open(result.payment_url, '_blank');
