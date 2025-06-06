@@ -1,6 +1,5 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import WebApp from '@twa-dev/sdk';
 
 interface TelegramUser {
   id: number;
@@ -41,6 +40,8 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
   useEffect(() => {
     // Инициализация Telegram Web App
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      const WebApp = window.Telegram.WebApp;
+      
       WebApp.ready();
       WebApp.expand();
       
@@ -73,73 +74,65 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
   }, []);
 
   const showMainButton = (text: string, onClick: () => void) => {
-    if (WebApp.MainButton) {
-      WebApp.MainButton.setText(text);
-      WebApp.MainButton.show();
-      WebApp.MainButton.onClick(onClick);
+    if (window.Telegram?.WebApp?.MainButton) {
+      const MainButton = window.Telegram.WebApp.MainButton;
+      MainButton.setText(text);
+      MainButton.show();
+      MainButton.onClick(onClick);
     }
   };
 
   const hideMainButton = () => {
-    if (WebApp.MainButton) {
-      WebApp.MainButton.hide();
+    if (window.Telegram?.WebApp?.MainButton) {
+      window.Telegram.WebApp.MainButton.hide();
     }
   };
 
   const showBackButton = (onClick: () => void) => {
-    if (WebApp.BackButton) {
-      WebApp.BackButton.show();
-      WebApp.BackButton.onClick(onClick);
+    if (window.Telegram?.WebApp?.BackButton) {
+      const BackButton = window.Telegram.WebApp.BackButton;
+      BackButton.show();
+      BackButton.onClick(onClick);
     }
   };
 
   const hideBackButton = () => {
-    if (WebApp.BackButton) {
-      WebApp.BackButton.hide();
+    if (window.Telegram?.WebApp?.BackButton) {
+      window.Telegram.WebApp.BackButton.hide();
     }
   };
 
   const hapticFeedback = (type: 'light' | 'medium' | 'heavy') => {
-    if (WebApp.HapticFeedback) {
-      switch (type) {
-        case 'light':
-          WebApp.HapticFeedback.impactOccurred('light');
-          break;
-        case 'medium':
-          WebApp.HapticFeedback.impactOccurred('medium');
-          break;
-        case 'heavy':
-          WebApp.HapticFeedback.impactOccurred('heavy');
-          break;
-      }
+    if (window.Telegram?.WebApp?.HapticFeedback) {
+      window.Telegram.WebApp.HapticFeedback.impactOccurred(type);
     }
   };
 
   const showAlert = (message: string) => {
-    if (WebApp.showAlert) {
-      WebApp.showAlert(message);
+    if (window.Telegram?.WebApp?.showAlert) {
+      window.Telegram.WebApp.showAlert(message);
     } else {
       alert(message);
     }
   };
 
   const showConfirm = (message: string, callback: (confirmed: boolean) => void) => {
-    if (WebApp.showConfirm) {
-      WebApp.showConfirm(message, callback);
+    if (window.Telegram?.WebApp?.showConfirm) {
+      window.Telegram.WebApp.showConfirm(message, callback);
     } else {
       callback(confirm(message));
     }
   };
 
   const expand = () => {
-    if (WebApp.expand) {
-      WebApp.expand();
+    if (window.Telegram?.WebApp?.expand) {
+      window.Telegram.WebApp.expand();
     }
   };
 
   const ready = () => {
-    if (WebApp.ready) {
-      WebApp.ready();
+    if (window.Telegram?.WebApp?.ready) {
+      window.Telegram.WebApp.ready();
     }
   };
 
