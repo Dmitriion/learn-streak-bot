@@ -28,17 +28,21 @@ export const useTelegramWebApp = () => {
       WebApp.expand();
       
       setTheme(WebApp.colorScheme as 'light' | 'dark');
-      setViewportHeight(WebApp.viewportHeight || window.innerHeight);
-      setIsExpanded(WebApp.isExpanded);
+      // Используем fallback для viewportHeight если не доступно
+      setViewportHeight((WebApp as any).viewportHeight || window.innerHeight);
+      setIsExpanded((WebApp as any).isExpanded || false);
       
-      // Event listeners
+      // Event listeners с fallback обработкой
       WebApp.onEvent('themeChanged', () => {
         const newTheme = WebApp.colorScheme as 'light' | 'dark';
         setTheme(newTheme);
         logger.debug('Тема изменена', { theme: newTheme });
       });
       
-      WebApp.onEvent('viewportChanged', ({ height, isExpanded: expanded }) => {
+      // Обработка viewport изменений
+      WebApp.onEvent('viewportChanged', () => {
+        const height = (WebApp as any).viewportHeight || window.innerHeight;
+        const expanded = (WebApp as any).isExpanded || false;
         setViewportHeight(height);
         setIsExpanded(expanded);
         logger.debug('Viewport изменен', { height, expanded });
@@ -50,12 +54,13 @@ export const useTelegramWebApp = () => {
       // Lifecycle events
       WebApp.onEvent('settingsButtonClicked', () => {
         logger.info('Кнопка настроек нажата');
-        // Здесь можно открыть modal с настройками
       });
 
-      // Closing confirmation
-      WebApp.enableClosingConfirmation();
-      setIsClosingConfirmationEnabled(true);
+      // Closing confirmation с проверкой поддержки
+      if ((WebApp as any).enableClosingConfirmation) {
+        (WebApp as any).enableClosingConfirmation();
+        setIsClosingConfirmationEnabled(true);
+      }
       
       setIsReady(true);
       logger.info('Telegram WebApp инициализирован успешно');
@@ -151,18 +156,18 @@ export const useTelegramWebApp = () => {
     }
   }, []);
 
-  // Новые методы для улучшенного UX
+  // Новые методы для улучшенного UX с проверкой поддержки
   const enableClosingConfirmation = useCallback(() => {
-    if (window.Telegram?.WebApp?.enableClosingConfirmation) {
-      window.Telegram.WebApp.enableClosingConfirmation();
+    if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).enableClosingConfirmation) {
+      (window.Telegram.WebApp as any).enableClosingConfirmation();
       setIsClosingConfirmationEnabled(true);
       logger.debug('Подтверждение закрытия включено');
     }
   }, []);
 
   const disableClosingConfirmation = useCallback(() => {
-    if (window.Telegram?.WebApp?.disableClosingConfirmation) {
-      window.Telegram.WebApp.disableClosingConfirmation();
+    if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).disableClosingConfirmation) {
+      (window.Telegram.WebApp as any).disableClosingConfirmation();
       setIsClosingConfirmationEnabled(false);
       logger.debug('Подтверждение закрытия отключено');
     }

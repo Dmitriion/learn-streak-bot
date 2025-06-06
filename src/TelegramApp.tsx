@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useTelegram } from './providers/TelegramProvider';
 import { useTelegramNavigation } from './hooks/useTelegramNavigation';
@@ -131,26 +132,37 @@ const TelegramApp = () => {
     const performanceService = PerformanceService.getInstance();
     
     // Измеряем время рендера каждой страницы
-    return performanceService.measureComponentRender(`page_${currentRoute}`, () => {
-      switch (currentRoute) {
-        case 'dashboard':
-          return <Dashboard />;
-        case 'lessons':
-          return <Lessons />;
-        case 'test':
-          return <Test />;
-        case 'analytics':
-          return <Analytics />;
-        case 'lesson-detail':
-          return <LessonDetail lessonId={params?.lessonId} />;
-        case 'subscription':
-          return <Subscription />;
-        case 'payment-success':
-          return <PaymentSuccess paymentId={params?.paymentId} planName={params?.planName} />;
-        default:
-          return <Dashboard />;
-      }
-    });
+    const endTiming = performanceService.startTiming(`page_${currentRoute}`);
+    
+    let pageComponent;
+    switch (currentRoute) {
+      case 'dashboard':
+        pageComponent = <Dashboard />;
+        break;
+      case 'lessons':
+        pageComponent = <Lessons />;
+        break;
+      case 'test':
+        pageComponent = <Test />;
+        break;
+      case 'analytics':
+        pageComponent = <Analytics />;
+        break;
+      case 'lesson-detail':
+        pageComponent = <LessonDetail lessonId={params?.lessonId} />;
+        break;
+      case 'subscription':
+        pageComponent = <Subscription />;
+        break;
+      case 'payment-success':
+        pageComponent = <PaymentSuccess paymentId={params?.paymentId} planName={params?.planName} />;
+        break;
+      default:
+        pageComponent = <Dashboard />;
+    }
+    
+    endTiming();
+    return pageComponent;
   };
 
   return (
