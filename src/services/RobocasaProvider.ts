@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+
 import { PaymentData, PaymentResponse } from '../schemas/validation';
 
 export interface RobocasaConfig {

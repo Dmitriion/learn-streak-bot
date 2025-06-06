@@ -1,36 +1,29 @@
 
 import ErrorService from './ErrorService';
 import LoggingService from './LoggingService';
+import PaymentValidator from './payment/PaymentValidator';
+import PlansProvider from './payment/PlansProvider';
+import { PaymentProvider } from './payment/PaymentProvider';
 import { 
-  validatePaymentData, 
-  validateSubscriptionStatus,
   type PaymentData,
   type PaymentResponse,
   type SubscriptionStatus,
   type SubscriptionPlan
 } from '../schemas/validation';
 
-export interface PaymentProvider {
-  id: 'youkassa' | 'robocasa';
-  name: string;
-  available: boolean;
-}
-
 class PaymentService {
   private static instance: PaymentService;
   private baseWebhookUrl = '';
   private errorService: ErrorService;
   private logger: LoggingService;
-  private readonly ALLOWED_PAYMENT_DOMAINS = [
-    'yookassa.ru',
-    'api.yookassa.ru', 
-    'robocasa.ru',
-    'api.robocasa.ru'
-  ];
+  private validator: PaymentValidator;
+  private plansProvider: PlansProvider;
 
   constructor() {
     this.errorService = ErrorService.getInstance();
     this.logger = LoggingService.getInstance();
+    this.validator = new PaymentValidator();
+    this.plansProvider = new PlansProvider();
   }
 
   static getInstance(): PaymentService {
@@ -41,85 +34,15 @@ class PaymentService {
   }
 
   setWebhookUrl(url: string) {
-    // Валидация webhook URL
-    try {
-      const parsedUrl = new URL(url);
-      if (!parsedUrl.protocol.startsWith('https') && process.env.NODE_ENV === 'production') {
-        this.errorService.handleValidationError('Webhook URL должен использовать HTTPS в production');
-        return;
-      }
+    if (this.validator.validateWebhookUrl(url)) {
       this.baseWebhookUrl = url;
+      const parsedUrl = new URL(url);
       this.logger.info('Webhook URL установлен', { url: parsedUrl.origin });
-    } catch (error) {
-      this.errorService.handleValidationError('Невалидный webhook URL', { url });
     }
   }
 
   getAvailablePlans(): SubscriptionPlan[] {
-    return [
-      {
-        id: 'basic',
-        name: 'Базовый доступ',
-        price: 0,
-        currency: 'RUB',
-        duration: 30,
-        features: ['Доступ к первым 3 урокам', 'Базовая аналитика']
-      },
-      {
-        id: 'premium',
-        name: 'Премиум доступ',
-        price: 1990,
-        currency: 'RUB',
-        duration: 30,
-        features: ['Все уроки курса', 'Детальная аналитика', 'Сертификат'],
-        popular: true
-      },
-      {
-        id: 'vip',
-        name: 'VIP доступ',
-        price: 4990,
-        currency: 'RUB',
-        duration: 30,
-        features: ['Все уроки курса', 'Персональные консультации', 'Приоритетная поддержка', 'Дополнительные материалы']
-      }
-    ];
-  }
-
-  /**
-   * Улучшенная валидация платежных URL
-   */
-  private validatePaymentUrl(url: string): { isValid: boolean; error?: string } {
-    try {
-      const parsedUrl = new URL(url);
-      
-      // Проверка HTTPS
-      if (parsedUrl.protocol !== 'https:') {
-        return { isValid: false, error: 'Платежная ссылка должна использовать HTTPS' };
-      }
-      
-      // Проверка разрешенных доменов
-      const isAllowedDomain = this.ALLOWED_PAYMENT_DOMAINS.some(domain => 
-        parsedUrl.hostname === domain || parsedUrl.hostname.endsWith(`.${domain}`)
-      );
-      
-      if (!isAllowedDomain) {
-        return { isValid: false, error: 'Неразрешенный домен для платежной ссылки' };
-      }
-      
-      // Проверка на подозрительные параметры
-      const suspiciousParams = ['script', 'eval', 'javascript', 'data:', 'vbscript'];
-      const urlString = url.toLowerCase();
-      
-      for (const param of suspiciousParams) {
-        if (urlString.includes(param)) {
-          return { isValid: false, error: 'Подозрительные параметры в платежной ссылке' };
-        }
-      }
-      
-      return { isValid: true };
-    } catch (error) {
-      return { isValid: false, error: 'Невалидный формат URL' };
-    }
+    return this.plansProvider.getAvailablePlans();
   }
 
   async createPayment(paymentData: PaymentData): Promise<PaymentResponse> {
@@ -131,16 +54,11 @@ class PaymentService {
     
     try {
       // Валидация входных данных
-      const validationResult = validatePaymentData(paymentData);
-      if (!validationResult.success) {
-        const error = this.errorService.handleValidationError(
-          'Невалидные данные для создания платежа',
-          { validationErrors: validationResult.error.issues }
-        );
-        
+      const validation = this.validator.validatePaymentData(paymentData);
+      if (!validation.isValid) {
         return {
           success: false,
-          error: 'Невалидные данные платежа'
+          error: validation.error
         };
       }
 
@@ -185,7 +103,7 @@ class PaymentService {
 
       // Валидация ответа
       if (response.payment_url) {
-        const urlValidation = this.validatePaymentUrl(response.payment_url);
+        const urlValidation = this.validator.validatePaymentUrl(response.payment_url);
         if (!urlValidation.isValid) {
           this.errorService.handlePaymentError(
             `Небезопасная платежная ссылка: ${urlValidation.error}`,
@@ -259,15 +177,11 @@ class PaymentService {
 
       // Валидация ответа
       if (response.subscription_status) {
-        const validationResult = validateSubscriptionStatus(response.subscription_status);
-        if (!validationResult.success) {
-          this.errorService.handleValidationError(
-            'Невалидный ответ статуса подписки',
-            { validationErrors: validationResult.error.issues }
-          );
+        const validation = this.validator.validateSubscriptionStatus(response.subscription_status);
+        if (!validation.isValid) {
           return null;
         }
-        return validationResult.data;
+        return validation.data;
       }
 
       this.logger.debug('Статус подписки получен', { 
