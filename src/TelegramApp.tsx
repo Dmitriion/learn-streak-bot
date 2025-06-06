@@ -25,12 +25,12 @@ const TelegramApp = () => {
   useAppInitialization();
   useThemeAndViewport({ theme, viewportHeight });
 
-  // Показываем загрузчик пока приложение не готово
+  // Показываем загрузчик только во время начальной проверки
   if (!isReady || registrationStatus === 'checking') {
     return <AppLoader />;
   }
 
-  // Если пользователь аутентифицирован но не зарегистрирован - показываем только регистрацию
+  // Если пользователь аутентифицирован но не зарегистрирован - показываем регистрацию
   if (isAuthenticated && !isRegistered) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
@@ -44,27 +44,32 @@ const TelegramApp = () => {
     );
   }
 
-  // Если пользователь зарегистрирован но навигация не готова - показываем загрузчик
-  if (isRegistered && !isNavigationReady) {
-    return <AppLoader />;
-  }
-
   // Если пользователь зарегистрирован - показываем основное приложение
-  if (isRegistered && isNavigationReady) {
+  // УБИРАЕМ блокирующую проверку isNavigationReady
+  if (isRegistered) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
         <AppStyles theme={theme} viewportHeight={viewportHeight} />
         <AppRouter 
           currentRoute={currentRoute} 
           params={params} 
-          isLoading={false}
+          isLoading={!isNavigationReady} // Показываем загрузчик только пока навигация не готова
         />
       </div>
     );
   }
 
-  // Fallback для неопределенных состояний
-  return <AppLoader />;
+  // Fallback для неопределенных состояний - показываем основное приложение
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
+      <AppStyles theme={theme} viewportHeight={viewportHeight} />
+      <AppRouter 
+        currentRoute={currentRoute} 
+        params={params} 
+        isLoading={!isNavigationReady}
+      />
+    </div>
+  );
 };
 
 export default TelegramApp;

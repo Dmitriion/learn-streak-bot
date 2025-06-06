@@ -70,10 +70,14 @@ export const useTelegramInit = () => {
       WebApp.onEvent('mainButtonClicked', handleMainButtonClicked);
       WebApp.onEvent('backButtonClicked', handleBackButtonClicked);
 
-      // Включаем подтверждение закрытия для лучшего UX
-      if ((WebApp as any).enableClosingConfirmation) {
-        (WebApp as any).enableClosingConfirmation();
-        setIsClosingConfirmationEnabled(true);
+      // Включаем подтверждение закрытия только если поддерживается
+      try {
+        if ((WebApp as any).enableClosingConfirmation) {
+          (WebApp as any).enableClosingConfirmation();
+          setIsClosingConfirmationEnabled(true);
+        }
+      } catch (error) {
+        logger.debug('Closing confirmation не поддерживается в этой версии', { error });
       }
 
       // Обрабатываем deep links если есть
@@ -105,18 +109,26 @@ export const useTelegramInit = () => {
   }, [handleThemeChanged, handleViewportChanged, handleSettingsButtonClicked, handleMainButtonClicked, handleBackButtonClicked, logger]);
 
   const enableClosingConfirmation = useCallback(() => {
-    if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).enableClosingConfirmation) {
-      (window.Telegram.WebApp as any).enableClosingConfirmation();
-      setIsClosingConfirmationEnabled(true);
-      logger.debug('Подтверждение закрытия включено', {});
+    try {
+      if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).enableClosingConfirmation) {
+        (window.Telegram.WebApp as any).enableClosingConfirmation();
+        setIsClosingConfirmationEnabled(true);
+        logger.debug('Подтверждение закрытия включено', {});
+      }
+    } catch (error) {
+      logger.debug('Не удалось включить подтверждение закрытия', { error });
     }
   }, [logger]);
 
   const disableClosingConfirmation = useCallback(() => {
-    if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).disableClosingConfirmation) {
-      (window.Telegram.WebApp as any).disableClosingConfirmation();
-      setIsClosingConfirmationEnabled(false);
-      logger.debug('Подтверждение закрытия отключено', {});
+    try {
+      if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).disableClosingConfirmation) {
+        (window.Telegram.WebApp as any).disableClosingConfirmation();
+        setIsClosingConfirmationEnabled(false);
+        logger.debug('Подтверждение закрытия отключено', {});
+      }
+    } catch (error) {
+      logger.debug('Не удалось отключить подтверждение закрытия', { error });
     }
   }, [logger]);
 

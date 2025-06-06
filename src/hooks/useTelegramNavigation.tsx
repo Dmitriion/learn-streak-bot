@@ -20,25 +20,22 @@ export const useTelegramNavigation = () => {
     isInitialized: false
   });
 
-  // Инициализация навигации только для зарегистрированных пользователей
+  // Инициализация навигации - упрощенная логика без блокировок
   useEffect(() => {
-    // Не инициализируем пока идет проверка регистрации
+    // Инициализируем навигацию сразу когда статус известен
     if (registrationStatus === 'checking') {
-      return;
+      return; // Ждем только пока идет проверка
     }
 
-    // Навигация работает только для зарегистрированных пользователей
-    if (!isRegistered) {
-      return;
-    }
-
-    // Если уже инициализировано, не делаем повторную инициализацию
+    // Если уже инициализировано, не переинициализируем
     if (navigation.isInitialized) {
       return;
     }
 
-    // Проверяем Telegram WebApp deep link
+    // Инициализируем навигацию независимо от статуса регистрации
     let initialRoute: TelegramRoute = 'dashboard';
+    
+    // Проверяем Telegram WebApp deep link только если в Telegram
     if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initDataUnsafe?.start_param) {
       const startParam = window.Telegram.WebApp.initDataUnsafe.start_param;
       const validRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'analytics', 'advanced-analytics'];
@@ -53,13 +50,17 @@ export const useTelegramNavigation = () => {
       isInitialized: true
     });
 
-    console.log('Navigation initialized for registered user:', { initialRoute, isRegistered });
-  }, [isRegistered, registrationStatus, navigation.isInitialized]);
+    console.log('Navigation initialized:', { 
+      initialRoute, 
+      isRegistered, 
+      registrationStatus 
+    });
+  }, [registrationStatus, navigation.isInitialized, isRegistered]);
 
   const navigate = useCallback((route: TelegramRoute, params?: Record<string, any>) => {
-    // Навигация доступна только зарегистрированным пользователям
-    if (!isRegistered) {
-      console.warn('Navigation blocked: user not registered');
+    // Навигация доступна всегда когда инициализирована
+    if (!navigation.isInitialized) {
+      console.warn('Navigation not initialized yet');
       return;
     }
 
@@ -88,10 +89,10 @@ export const useTelegramNavigation = () => {
     }
 
     console.log('Navigated to:', route, params);
-  }, [hapticFeedback, showBackButton, hideBackButton, isRegistered]);
+  }, [hapticFeedback, showBackButton, hideBackButton, navigation.isInitialized]);
 
   const goBack = useCallback(() => {
-    if (!isRegistered) {
+    if (!navigation.isInitialized) {
       return;
     }
 
@@ -114,7 +115,7 @@ export const useTelegramNavigation = () => {
         history: newHistory
       };
     });
-  }, [hapticFeedback, hideBackButton, isRegistered]);
+  }, [hapticFeedback, hideBackButton, navigation.isInitialized]);
 
   return {
     currentRoute: navigation.currentRoute,
@@ -122,6 +123,7 @@ export const useTelegramNavigation = () => {
     navigate,
     goBack,
     canGoBack: navigation.history.length > 1,
-    isNavigationReady: navigation.isInitialized && isRegistered
+    // Навигация готова когда инициализирована, независимо от регистрации
+    isNavigationReady: navigation.isInitialized
   };
 };
