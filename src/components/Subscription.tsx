@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, Crown, Star, Zap, Shield, CreditCard } from 'lucide-react';
 import { useTelegram } from '../providers/TelegramProvider';
-import PaymentService, { SubscriptionPlan, SubscriptionStatus } from '../services/PaymentService';
+import PaymentService from '../services/PaymentService';
+import { SubscriptionPlan, SubscriptionStatus } from '../schemas/validation';
 import { useToast } from '@/hooks/use-toast';
 
 const Subscription = () => {
@@ -48,7 +49,9 @@ const Subscription = () => {
     
     try {
       const status = await paymentService.getSubscriptionStatus(user.id.toString());
-      setSubscriptionStatus(status);
+      if (status) {
+        setSubscriptionStatus(status);
+      }
     } catch (error) {
       console.error('Ошибка загрузки статуса подписки:', error);
     }

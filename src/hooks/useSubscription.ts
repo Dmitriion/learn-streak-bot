@@ -25,7 +25,9 @@ export const useSubscription = () => {
 
     try {
       const status = await paymentService.getSubscriptionStatus(user.id.toString());
-      setSubscriptionStatus(status);
+      if (status) {
+        setSubscriptionStatus(status);
+      }
     } catch (err) {
       console.error('Ошибка загрузки статуса подписки:', err);
       setError('Не удалось загрузить статус подписки');
