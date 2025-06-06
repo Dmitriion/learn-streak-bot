@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, Clock, Trophy, Target, BookOpen, Calendar, ArrowLeft, Award } from 'lucide-react';
+import { TrendingUp, Clock, Trophy, Target, BookOpen, Calendar, ArrowLeft, Award, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Analytics = () => {
@@ -64,14 +63,23 @@ const Analytics = () => {
             </h1>
             <p className="text-muted-foreground">Отслеживайте свой прогресс и достижения</p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            На главную
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => navigate('/advanced-analytics')}
+              className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Расширенная аналитика
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              На главную
+            </Button>
+          </div>
         </div>
 
         {/* Weekly Stats */}
