@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Crown, Star, Zap } from 'lucide-react';
+import { Check, Crown, Star, Zap, Shield, CreditCard } from 'lucide-react';
 import { useTelegram } from '../providers/TelegramProvider';
 import PaymentService, { SubscriptionPlan, SubscriptionStatus } from '../services/PaymentService';
 import { useToast } from '@/hooks/use-toast';
@@ -59,6 +59,40 @@ const Subscription = () => {
     setSelectedPlan(plan);
   };
 
+  const isValidPaymentUrl = (url: string): boolean => {
+    try {
+      const urlObj = new URL(url);
+      const allowedDomains = ['yookassa.ru', 'robocasa.ru', 'api.yookassa.ru', 'api.robocasa.ru'];
+      return allowedDomains.some(domain => urlObj.hostname.includes(domain));
+    } catch {
+      return false;
+    }
+  };
+
+  const openPaymentUrl = (url: string) => {
+    console.log('Открытие платежной ссылки:', url);
+    
+    if (!isValidPaymentUrl(url)) {
+      console.error('Небезопасная платежная ссылка:', url);
+      showAlert('Ошибка: небезопасная платежная ссылка');
+      return;
+    }
+
+    if (window.Telegram?.WebApp?.openLink) {
+      try {
+        window.Telegram.WebApp.openLink(url);
+        console.log('Платежная ссылка открыта через Telegram WebApp');
+      } catch (error) {
+        console.error('Ошибка открытия ссылки через Telegram:', error);
+        window.open(url, '_blank');
+      }
+    } else {
+      // Fallback для разработки
+      console.log('Telegram WebApp недоступен, используем window.open');
+      window.open(url, '_blank');
+    }
+  };
+
   const handlePayment = async () => {
     if (!selectedPlan || !user) return;
 
@@ -75,21 +109,21 @@ const Subscription = () => {
         return_url: window.location.origin
       };
 
+      console.log('Создание платежа:', paymentData);
+      
       const result = await paymentService.createPayment(paymentData);
 
       if (result.success && result.payment_url) {
-        // Открываем платежную форму в Telegram
-        if (window.Telegram?.WebApp?.openLink) {
-          window.Telegram.WebApp.openLink(result.payment_url);
-        } else {
-          // Fallback для разработки
-          window.open(result.payment_url, '_blank');
-        }
-
         toast({
           title: "Переход к оплате",
           description: "Вы будете перенаправлены на страницу оплаты",
         });
+
+        // Небольшая задержка для показа toast
+        setTimeout(() => {
+          openPaymentUrl(result.payment_url!);
+        }, 1000);
+
       } else {
         throw new Error(result.error || 'Ошибка создания платежа');
       }
@@ -217,13 +251,23 @@ const Subscription = () => {
         </div>
 
         <div className="text-center space-y-4 pt-6">
-          <p className="text-sm text-muted-foreground">
-            Безопасная оплата через проверенные платежные системы
-          </p>
-          <div className="flex justify-center space-x-4 text-xs text-muted-foreground">
-            <span>🔒 SSL шифрование</span>
-            <span>💳 Поддержка карт</span>
-            <span>📱 Telegram Payments</span>
+          <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
+            <Shield className="h-4 w-4" />
+            <span>Безопасная оплата через проверенные платежные системы</span>
+          </div>
+          <div className="flex justify-center space-x-6 text-xs text-muted-foreground">
+            <div className="flex items-center space-x-1">
+              <Shield className="h-3 w-3" />
+              <span>SSL шифрование</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <CreditCard className="h-3 w-3" />
+              <span>Поддержка карт</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <span>📱</span>
+              <span>Telegram Payments</span>
+            </div>
           </div>
         </div>
       </div>

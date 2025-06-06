@@ -53,6 +53,11 @@ declare global {
           removeItems(keys: string[], callback?: (error: Error | null) => void): void;
           getKeys(callback: (error: Error | null, keys?: string[]) => void): void;
         };
+        // Методы для работы с внешними ссылками и платежами
+        openLink(url: string): void;
+        openTelegramLink(url: string): void;
+        openInvoice(url: string, callback?: (status: string) => void): void;
+        switchInlineQuery(query: string, choose_chat_types?: string[]): void;
         showAlert(message: string, callback?: () => void): void;
         showConfirm(message: string, callback?: (confirmed: boolean) => void): void;
         showPopup(params: {
