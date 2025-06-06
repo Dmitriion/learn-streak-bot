@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,13 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Clock, Trophy, Target, BookOpen, Download, ArrowLeft, Activity, Users, Zap, Smartphone } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useTelegramNavigation } from '../hooks/useTelegramNavigation';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { useToast } from '@/hooks/use-toast';
 
 const AdvancedAnalytics = () => {
-  const navigate = useNavigate();
+  const { navigate } = useTelegramNavigation();
   const { toast } = useToast();
+  
   const {
     currentReport,
     realtimeMetrics,
@@ -104,7 +104,7 @@ const AdvancedAnalytics = () => {
             </Button>
             <Button
               variant="outline"
-              onClick={() => navigate('/analytics')}
+              onClick={() => navigate('analytics')}
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
