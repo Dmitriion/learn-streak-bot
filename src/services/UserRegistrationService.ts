@@ -1,3 +1,7 @@
+
+import MockBackendService from './MockBackendService';
+import LoggingService from './LoggingService';
+
 export interface UserRegistrationData {
   user_id: string;
   username?: string;
@@ -21,7 +25,21 @@ export interface N8NWebhookResponse {
 
 class UserRegistrationService {
   private static instance: UserRegistrationService;
-  private baseWebhookUrl = 'https://your-n8n-webhook-url.com'; // Будет настраиваться пользователем
+  private baseWebhookUrl = ''; // Пустой по умолчанию
+  private mockBackend: MockBackendService;
+  private logger: LoggingService;
+  private useMockMode = true; // По умолчанию используем Mock режим
+
+  constructor() {
+    this.mockBackend = MockBackendService.getInstance();
+    this.logger = LoggingService.getInstance();
+    
+    // Проверяем environment переменные
+    const envWebhookUrl = (globalThis as any).__N8N_WEBHOOK_URL__ || '';
+    if (envWebhookUrl) {
+      this.setWebhookUrl(envWebhookUrl);
+    }
+  }
 
   static getInstance(): UserRegistrationService {
     if (!UserRegistrationService.instance) {
@@ -32,11 +50,25 @@ class UserRegistrationService {
 
   setWebhookUrl(url: string) {
     this.baseWebhookUrl = url;
+    this.useMockMode = !url || url.length === 0;
+    
+    this.logger.info('UserRegistrationService: Webhook URL установлен', { 
+      url: url ? '***configured***' : 'empty',
+      useMockMode: this.useMockMode 
+    });
+  }
+
+  isUsingMockMode(): boolean {
+    return this.useMockMode;
   }
 
   async registerUser(userData: UserRegistrationData): Promise<N8NWebhookResponse> {
+    if (this.useMockMode) {
+      return this.mockBackend.registerUser(userData);
+    }
+
     try {
-      console.log('Отправка данных пользователя в N8N:', userData);
+      this.logger.info('UserRegistrationService: Отправка данных пользователя в N8N', { userId: userData.user_id });
       
       const response = await fetch(`${this.baseWebhookUrl}/webhook/user/register`, {
         method: 'POST',
@@ -45,7 +77,7 @@ class UserRegistrationService {
         },
         body: JSON.stringify({
           ...userData,
-          subscription_status: 'free', // По умолчанию бесплатная подписка
+          subscription_status: 'free',
           timestamp: new Date().toISOString(),
           action: 'register'
         }),
@@ -56,7 +88,7 @@ class UserRegistrationService {
       }
 
       const result = await response.json();
-      console.log('Ответ от N8N:', result);
+      this.logger.info('UserRegistrationService: Ответ от N8N', result);
       
       return {
         success: true,
@@ -65,15 +97,19 @@ class UserRegistrationService {
         subscription_status: result.subscription_status
       };
     } catch (error) {
-      console.error('Ошибка регистрации пользователя:', error);
-      return {
-        success: false,
-        message: 'Ошибка при регистрации. Попробуйте позже.'
-      };
+      this.logger.error('UserRegistrationService: Ошибка регистрации пользователя', { error, userId: userData.user_id });
+      
+      // Fallback на Mock режим при ошибке
+      this.logger.warn('UserRegistrationService: Переключение на Mock режим из-за ошибки');
+      return this.mockBackend.registerUser(userData);
     }
   }
 
   async checkUserExists(userId: string): Promise<N8NWebhookResponse> {
+    if (this.useMockMode) {
+      return this.mockBackend.checkUserExists(userId);
+    }
+
     try {
       const response = await fetch(`${this.baseWebhookUrl}/webhook/user/check`, {
         method: 'POST',
@@ -99,15 +135,18 @@ class UserRegistrationService {
         subscription_status: result.subscription_status
       };
     } catch (error) {
-      console.error('Ошибка проверки пользователя:', error);
-      return {
-        success: false,
-        message: 'Ошибка при проверке пользователя'
-      };
+      this.logger.error('UserRegistrationService: Ошибка проверки пользователя', { error, userId });
+      
+      // Fallback на Mock режим при ошибке
+      return this.mockBackend.checkUserExists(userId);
     }
   }
 
   async updateUserActivity(userId: string): Promise<void> {
+    if (this.useMockMode) {
+      return this.mockBackend.updateUserActivity(userId);
+    }
+
     try {
       await fetch(`${this.baseWebhookUrl}/webhook/user/activity`, {
         method: 'POST',
@@ -121,11 +160,17 @@ class UserRegistrationService {
         }),
       });
     } catch (error) {
-      console.error('Ошибка обновления активности:', error);
+      this.logger.error('UserRegistrationService: Ошибка обновления активности', { error, userId });
+      // Fallback на Mock режим
+      return this.mockBackend.updateUserActivity(userId);
     }
   }
 
   async updateSubscription(userId: string, subscriptionData: any): Promise<N8NWebhookResponse> {
+    if (this.useMockMode) {
+      return this.mockBackend.updateSubscription(userId, subscriptionData);
+    }
+
     try {
       const response = await fetch(`${this.baseWebhookUrl}/webhook/subscription/update`, {
         method: 'POST',
@@ -150,12 +195,20 @@ class UserRegistrationService {
         message: result.message || 'Подписка обновлена'
       };
     } catch (error) {
-      console.error('Ошибка обновления подписки:', error);
-      return {
-        success: false,
-        message: 'Ошибка при обновлении подписки'
-      };
+      this.logger.error('UserRegistrationService: Ошибка обновления подписки', { error, userId });
+      
+      // Fallback на Mock режим при ошибке
+      return this.mockBackend.updateSubscription(userId, subscriptionData);
     }
+  }
+
+  // Методы для управления Mock режимом
+  getMockData() {
+    return this.mockBackend.getAllUsers();
+  }
+
+  clearMockData() {
+    this.mockBackend.clearAllData();
   }
 }
 

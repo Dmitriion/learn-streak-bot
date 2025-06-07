@@ -8,6 +8,7 @@ import AdvancedAnalytics from '../../pages/AdvancedAnalytics';
 import LessonDetail from '../LessonDetail';
 import Subscription from '../Subscription';
 import PaymentSuccess from '../PaymentSuccess';
+import SettingsPage from '../settings/SettingsPage';
 import NotFound from '../../pages/NotFound';
 import AppLoader from './AppLoader';
 
@@ -58,6 +59,10 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentRoute, params, isLoading =
     case '/payment-success':
     case 'payment-success':
       return <PaymentSuccess />;
+    
+    case '/settings':
+    case 'settings':
+      return <SettingsPage />;
     
     case 'not-found':
       return <NotFound />;

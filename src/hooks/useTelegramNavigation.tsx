@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useTelegram } from '../providers/TelegramProvider';
 
-export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'advanced-analytics' | 'lesson-detail' | 'subscription' | 'payment-success' | 'not-found';
+export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'advanced-analytics' | 'lesson-detail' | 'subscription' | 'payment-success' | 'settings' | 'not-found';
 
 interface NavigationState {
   currentRoute: TelegramRoute;
@@ -38,7 +38,7 @@ export const useTelegramNavigation = () => {
     // Проверяем Telegram WebApp deep link только если в Telegram
     if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initDataUnsafe?.start_param) {
       const startParam = window.Telegram.WebApp.initDataUnsafe.start_param;
-      const validRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'analytics', 'advanced-analytics'];
+      const validRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'analytics', 'advanced-analytics', 'settings'];
       if (validRoutes.includes(startParam as TelegramRoute)) {
         initialRoute = startParam as TelegramRoute;
       }
@@ -65,7 +65,7 @@ export const useTelegramNavigation = () => {
     }
 
     // Проверка на существование роута
-    const validRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'advanced-analytics', 'lesson-detail', 'subscription', 'payment-success', 'not-found'];
+    const validRoutes: TelegramRoute[] = ['dashboard', 'lessons', 'test', 'analytics', 'advanced-analytics', 'lesson-detail', 'subscription', 'payment-success', 'settings', 'not-found'];
     
     if (!validRoutes.includes(route)) {
       console.warn('Unknown route:', route, 'Redirecting to not-found');
