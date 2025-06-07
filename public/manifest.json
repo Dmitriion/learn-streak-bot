@@ -1,0 +1,43 @@
+
+{
+  "name": "Образовательная Платформа - Менторинг",
+  "short_name": "МенторингApp",
+  "description": "Интерактивная платформа для изучения менторинга с тестированием и аналитикой",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#3b82f6",
+  "theme_color": "#6366f1",
+  "orientation": "portrait",
+  "categories": ["education", "productivity"],
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png", 
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Мои уроки",
+      "short_name": "Уроки",
+      "description": "Перейти к урокам",
+      "url": "/lessons",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Аналитика",
+      "short_name": "Статистика", 
+      "description": "Посмотреть прогресс",
+      "url": "/analytics",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

@@ -1,9 +1,11 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTelegram } from './providers/TelegramProvider';
 import { useTelegramNavigation } from './hooks/useTelegramNavigation';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useThemeAndViewport } from './hooks/useThemeAndViewport';
+import TelegramProductionService from './services/TelegramProductionService';
+import TelegramErrorBoundary from './components/telegram/TelegramErrorBoundary';
 import AppLoader from './components/app/AppLoader';
 import AppStyles from './components/app/AppStyles';
 import AppRouter from './components/app/AppRouter';
@@ -25,6 +27,18 @@ const TelegramApp = () => {
   useAppInitialization();
   useThemeAndViewport({ theme, viewportHeight });
 
+  // Инициализируем production сервисы
+  useEffect(() => {
+    const productionService = TelegramProductionService.getInstance();
+    productionService.initializeProduction();
+    
+    // Валидируем окружение
+    const isValidEnvironment = productionService.validateEnvironment();
+    if (!isValidEnvironment) {
+      console.warn('Environment validation failed');
+    }
+  }, []);
+
   // Показываем загрузчик только во время начальной проверки
   if (!isReady || registrationStatus === 'checking') {
     return <AppLoader />;
@@ -33,42 +47,47 @@ const TelegramApp = () => {
   // Если пользователь аутентифицирован но не зарегистрирован - показываем регистрацию
   if (isAuthenticated && !isRegistered) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
-        <AppStyles theme={theme} viewportHeight={viewportHeight} />
-        <Registration
-          onRegistrationComplete={registerUser}
-          isLoading={registrationStatus === 'registering'}
-          error={authError}
-        />
-      </div>
+      <TelegramErrorBoundary>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
+          <AppStyles theme={theme} viewportHeight={viewportHeight} />
+          <Registration
+            onRegistrationComplete={registerUser}
+            isLoading={registrationStatus === 'registering'}
+            error={authError}
+          />
+        </div>
+      </TelegramErrorBoundary>
     );
   }
 
   // Если пользователь зарегистрирован - показываем основное приложение
-  // УБИРАЕМ блокирующую проверку isNavigationReady
   if (isRegistered) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
-        <AppStyles theme={theme} viewportHeight={viewportHeight} />
-        <AppRouter 
-          currentRoute={currentRoute} 
-          params={params} 
-          isLoading={!isNavigationReady} // Показываем загрузчик только пока навигация не готова
-        />
-      </div>
+      <TelegramErrorBoundary>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
+          <AppStyles theme={theme} viewportHeight={viewportHeight} />
+          <AppRouter 
+            currentRoute={currentRoute} 
+            params={params} 
+            isLoading={!isNavigationReady}
+          />
+        </div>
+      </TelegramErrorBoundary>
     );
   }
 
   // Fallback для неопределенных состояний - показываем основное приложение
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
-      <AppStyles theme={theme} viewportHeight={viewportHeight} />
-      <AppRouter 
-        currentRoute={currentRoute} 
-        params={params} 
-        isLoading={!isNavigationReady}
-      />
-    </div>
+    <TelegramErrorBoundary>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
+        <AppStyles theme={theme} viewportHeight={viewportHeight} />
+        <AppRouter 
+          currentRoute={currentRoute} 
+          params={params} 
+          isLoading={!isNavigationReady}
+        />
+      </div>
+    </TelegramErrorBoundary>
   );
 };
 
