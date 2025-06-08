@@ -5,6 +5,7 @@ import { useTelegramNavigation } from './hooks/useTelegramNavigation';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useThemeAndViewport } from './hooks/useThemeAndViewport';
 import TelegramProductionService from './services/TelegramProductionService';
+import BuildValidator from './services/BuildValidator';
 import TelegramErrorBoundary from './components/telegram/TelegramErrorBoundary';
 import AppLoader from './components/app/AppLoader';
 import AppStyles from './components/app/AppStyles';
@@ -30,12 +31,21 @@ const TelegramApp = () => {
   // Инициализируем production сервисы
   useEffect(() => {
     const productionService = TelegramProductionService.getInstance();
+    const buildValidator = BuildValidator.getInstance();
+    
+    // Инициализируем production настройки
     productionService.initializeProduction();
     
     // Валидируем окружение
     const isValidEnvironment = productionService.validateEnvironment();
     if (!isValidEnvironment) {
       console.warn('Environment validation failed');
+    }
+    
+    // Проверяем готовность к production (только в development)
+    if (import.meta.env.DEV) {
+      const readiness = buildValidator.getProductionReadinessStatus();
+      console.log(`Production readiness: ${readiness.score}%`, readiness.checks);
     }
   }, []);
 

@@ -30,13 +30,21 @@ export default defineConfig(({ mode }) => ({
     // Оптимизация для Telegram Mini App
     target: 'es2015',
     minify: 'esbuild',
+    sourcemap: mode === 'development',
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-toast'],
+          telegram: ['@twa-dev/sdk'],
+          charts: ['recharts']
         }
       }
-    }
+    },
+    // Оптимизация размера bundle
+    chunkSizeWarningLimit: 1000
+  },
+  optimizeDeps: {
+    include: ['@twa-dev/sdk', 'recharts']
   }
 }));

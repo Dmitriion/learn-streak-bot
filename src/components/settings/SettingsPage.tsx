@@ -9,6 +9,7 @@ import { Settings, Webhook, Database, Trash2, CheckCircle } from 'lucide-react';
 import { useTelegram } from '../../providers/TelegramProvider';
 import UserRegistrationService from '../../services/UserRegistrationService';
 import TelegramValidationService from '../../services/TelegramValidationService';
+import ProductionReadiness from '../dev/ProductionReadiness';
 
 const SettingsPage: React.FC = () => {
   const { hapticFeedback } = useTelegram();
@@ -77,6 +78,9 @@ const SettingsPage: React.FC = () => {
           Настройки
         </h1>
       </div>
+
+      {/* Production Readiness Status */}
+      <ProductionReadiness />
 
       {/* Информация о среде */}
       <Card>
