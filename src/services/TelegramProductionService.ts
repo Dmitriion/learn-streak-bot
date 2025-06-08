@@ -88,14 +88,24 @@ class TelegramProductionService {
       webApp.ready();
       webApp.expand();
       
-      // Включаем подтверждение закрытия в production
-      if (webApp.enableClosingConfirmation) {
-        webApp.enableClosingConfirmation();
+      // Включаем подтверждение закрытия в production (безопасная проверка)
+      try {
+        const webAppWithExtensions = webApp as any;
+        if (webAppWithExtensions.enableClosingConfirmation) {
+          webAppWithExtensions.enableClosingConfirmation();
+        }
+      } catch (error) {
+        this.logger.debug('enableClosingConfirmation не поддерживается', { error });
       }
       
-      // Устанавливаем заголовок
-      if (webApp.headerColor) {
-        webApp.setHeaderColor('#6366f1');
+      // Устанавливаем заголовок (безопасная проверка)
+      try {
+        const webAppWithExtensions = webApp as any;
+        if (webAppWithExtensions.headerColor !== undefined && webAppWithExtensions.setHeaderColor) {
+          webAppWithExtensions.setHeaderColor('#6366f1');
+        }
+      } catch (error) {
+        this.logger.debug('setHeaderColor не поддерживается', { error });
       }
       
       this.logger.info('Telegram WebApp initialized for production');
