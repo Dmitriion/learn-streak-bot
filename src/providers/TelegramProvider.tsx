@@ -13,12 +13,12 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
   const value: TelegramContextType = {
     ...authFeatures,
     ...webAppFeatures,
-    // Исправляем типы для обязательных полей
+    // Исправляем недостающие поля из WebApp
     isInitialized: webAppFeatures.isReady || false,
     themeParams: webAppFeatures.themeParams || {},
     platform: webAppFeatures.platform || 'web',
     version: webAppFeatures.version || '1.0',
-    // Исправляем типы для openInvoice
+    // Корректируем openInvoice для совместимости типов
     openInvoice: (url: string, callback?: (status: TelegramPaymentStatus) => void) => {
       if (webAppFeatures.openInvoice) {
         webAppFeatures.openInvoice(url, callback ? (status: string) => {

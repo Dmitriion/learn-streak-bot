@@ -41,7 +41,7 @@ class UserRegistrationManager {
       // Сохраняем в mock backend
       await this.mockBackend.registerUser(registrationData);
       
-      // Отправляем событие автоматизации
+      // Отправляем событие автоматизации - используем triggerEvent вместо sendEvent
       await this.automationManager.triggerEvent('user_registered', {
         user_id: telegramUser.id.toString(),
         username: telegramUser.username || '',
