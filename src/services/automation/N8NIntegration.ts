@@ -1,17 +1,22 @@
 
 import LoggingService from '../LoggingService';
 import { AutomationEvent, N8NWebhookEvent, AutomationConfig, AutomationTrigger } from '../../types/automation';
+import { N8NConfig } from './N8NConfig';
+import { N8NWebhookClient } from './N8NWebhookClient';
+import { N8NConnectionManager } from './N8NConnectionManager';
 
 class N8NIntegration {
   private static instance: N8NIntegration;
   private logger: LoggingService;
-  private baseWebhookUrl: string;
-  private triggers: AutomationTrigger[] = [];
+  private config: N8NConfig;
+  private webhookClient: N8NWebhookClient;
+  private connectionManager: N8NConnectionManager;
 
   constructor() {
     this.logger = LoggingService.getInstance();
-    this.baseWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || '';
-    this.initializeDefaultTriggers();
+    this.config = new N8NConfig();
+    this.webhookClient = new N8NWebhookClient();
+    this.connectionManager = new N8NConnectionManager(this.config, this.webhookClient);
   }
 
   static getInstance(): N8NIntegration {
@@ -21,68 +26,11 @@ class N8NIntegration {
     return N8NIntegration.instance;
   }
 
-  private initializeDefaultTriggers() {
-    this.triggers = [
-      {
-        id: 'user_registered',
-        name: 'Регистрация пользователя',
-        event_type: 'user_registered',
-        webhook_url: '/webhook/user/registered',
-        enabled: true,
-        description: 'Отправляется при регистрации нового пользователя'
-      },
-      {
-        id: 'lesson_completed',
-        name: 'Урок завершен',
-        event_type: 'lesson_completed',
-        webhook_url: '/webhook/lesson/completed',
-        enabled: true,
-        description: 'Отправляется при завершении урока'
-      },
-      {
-        id: 'test_passed',
-        name: 'Тест пройден',
-        event_type: 'test_passed',
-        webhook_url: '/webhook/test/passed',
-        enabled: true,
-        description: 'Отправляется при прохождении теста'
-      },
-      {
-        id: 'payment_success',
-        name: 'Платеж успешен',
-        event_type: 'payment_success',
-        webhook_url: '/webhook/payment/success',
-        enabled: true,
-        description: 'Отправляется при успешном платеже'
-      },
-      {
-        id: 'course_completed',
-        name: 'Курс завершен',
-        event_type: 'course_completed',
-        webhook_url: '/webhook/course/completed',
-        enabled: true,
-        description: 'Отправляется при завершении курса'
-      },
-      {
-        id: 'user_inactive',
-        name: 'Пользователь неактивен',
-        event_type: 'user_inactive',
-        webhook_url: '/webhook/user/inactive',
-        enabled: true,
-        description: 'Отправляется при длительной неактивности'
-      }
-    ];
-  }
-
   setWebhookUrl(url: string) {
-    this.baseWebhookUrl = url;
-    this.logger.info('N8N webhook URL обновлен', { 
-      hasUrl: !!url,
-      environment: import.meta.env.MODE 
-    });
+    this.config.setWebhookUrl(url);
   }
 
-  // Новый метод для совместимости с AutomationManager
+  // Метод для совместимости с AutomationManager
   async triggerWebhook(event: N8NWebhookEvent): Promise<boolean> {
     const automationEvent: AutomationEvent = {
       type: event.event_type,
@@ -95,140 +43,49 @@ class N8NIntegration {
   }
 
   async sendEvent(event: AutomationEvent): Promise<boolean> {
-    if (!this.baseWebhookUrl) {
+    if (!this.config.isConfigured()) {
       this.logger.warn('N8N webhook URL не настроен, пропускаем отправку события', { event });
       return false;
     }
 
-    try {
-      const trigger = this.triggers.find(t => t.id === event.type);
-      if (!trigger || !trigger.enabled) {
-        this.logger.warn('Триггер отключен или не найден', { eventType: event.type });
-        return false;
-      }
-
-      const webhookUrl = `${this.baseWebhookUrl}${trigger.webhook_url}`;
-      
-      // Добавляю timeout и better error handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд timeout
-
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...event,
-          timestamp: new Date().toISOString(),
-          environment: import.meta.env.MODE
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        this.logger.info('Событие успешно отправлено в N8N', { 
-          eventType: event.type,
-          status: response.status 
-        });
-        return true;
-      } else {
-        this.logger.warn('N8N вернул ошибку', { 
-          status: response.status,
-          eventType: event.type 
-        });
-        return false;
-      }
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        this.logger.error('Timeout при отправке события в N8N', { 
-          eventType: event.type 
-        });
-      } else {
-        this.logger.error('Ошибка отправки события в N8N', { 
-          error,
-          eventType: event.type 
-        });
-      }
+    const trigger = this.config.findTrigger(event.type);
+    if (!trigger || !trigger.enabled) {
+      this.logger.warn('Триггер отключен или не найден', { eventType: event.type });
       return false;
     }
+
+    const webhookUrl = this.config.buildWebhookUrl(trigger);
+    return await this.webhookClient.sendEvent(webhookUrl, event);
   }
 
-  // Новый метод для обновления конфигурации
+  // Методы для управления конфигурацией
   updateConfig(config: Partial<AutomationConfig>) {
-    if (config.base_webhook_url) {
-      this.setWebhookUrl(config.base_webhook_url);
-    }
-    if (config.enabled_triggers) {
-      this.triggers = config.enabled_triggers;
-    }
-    this.logger.info('N8N конфигурация обновлена', { config });
+    this.config.updateConfig(config);
   }
 
-  // Новый метод для получения активных триггеров
   getEnabledTriggers(): AutomationTrigger[] {
-    return this.triggers.filter(trigger => trigger.enabled);
+    return this.config.getEnabledTriggers();
   }
 
-  // Новый метод для управления триггерами
   toggleTrigger(triggerId: string, enabled: boolean) {
-    const trigger = this.triggers.find(t => t.id === triggerId);
-    if (trigger) {
-      trigger.enabled = enabled;
-      this.logger.info('Триггер обновлен', { triggerId, enabled });
-    } else {
-      this.logger.warn('Триггер не найден', { triggerId });
-    }
+    this.config.toggleTrigger(triggerId, enabled);
   }
 
+  // Методы для тестирования соединения
   async testConnection(): Promise<{ success: boolean; error?: string }> {
-    if (!this.baseWebhookUrl) {
-      return { success: false, error: 'Webhook URL не настроен' };
-    }
-
-    try {
-      const testUrl = `${this.baseWebhookUrl}/test`;
-      
-      // Добавляю timeout и better error handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд для теста
-
-      const response = await fetch(testUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          test: true,
-          timestamp: new Date().toISOString(),
-          environment: import.meta.env.MODE
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        this.logger.info('N8N соединение успешно протестировано');
-        return { success: true };
-      } else {
-        return { success: false, error: `HTTP ${response.status}` };
-      }
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        this.logger.error('Timeout при тестировании N8N соединения');
-        return { success: false, error: 'Timeout соединения' };
-      } else {
-        this.logger.error('Ошибка тестирования N8N соединения', { error });
-        return { success: false, error: 'Ошибка соединения' };
-      }
-    }
+    return this.connectionManager.testConnection();
   }
 
   isConfigured(): boolean {
-    return !!this.baseWebhookUrl;
+    return this.connectionManager.isConfigured();
+  }
+
+  getConnectionStatus() {
+    return this.connectionManager.getConnectionStatus();
+  }
+
+  async validateConnection() {
+    return this.connectionManager.validateConnection();
   }
 }
 
