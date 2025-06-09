@@ -1,6 +1,5 @@
-
 import LoggingService from '../LoggingService';
-import { ValidationResult } from './types';
+import { ValidationResult } from '../auth/types';
 
 class SecurityValidationService {
   private static instance: SecurityValidationService;

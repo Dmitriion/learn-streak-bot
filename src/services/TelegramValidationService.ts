@@ -1,4 +1,3 @@
-
 import LoggingService from './LoggingService';
 import SecurityValidationService from './validation/SecurityValidationService';
 import ContentValidationService from './validation/ContentValidationService';
@@ -8,7 +7,7 @@ import {
   InitDataValidationResult, 
   UserValidationResult, 
   ValidationResult 
-} from './validation/types';
+} from './auth/types';
 
 class TelegramValidationService {
   private static instance: TelegramValidationService;

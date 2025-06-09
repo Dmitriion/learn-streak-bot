@@ -1,5 +1,5 @@
 
-import { TelegramUser, UserValidationResult } from './types';
+import { TelegramUser, UserValidationResult } from '../auth/types';
 import SecurityValidationService from './SecurityValidationService';
 
 class ContentValidationService {

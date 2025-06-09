@@ -9,6 +9,16 @@ export interface TelegramUser {
   photo_url?: string;
 }
 
+export interface TelegramInitData {
+  user?: TelegramUser;
+  auth_date: number;
+  hash: string;
+  start_param?: string;
+  chat_type?: string;
+  chat_instance?: string;
+  [key: string]: any;
+}
+
 export interface AuthState {
   isAuthenticated: boolean;
   isRegistered: boolean;
@@ -26,4 +36,20 @@ export interface UserRegistrationData {
   last_activity: string;
   score: number;
   telegram_data: TelegramUser;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  error?: string;
+}
+
+export interface UserValidationResult {
+  isValid: boolean;
+  warnings?: string[];
+}
+
+export interface InitDataValidationResult {
+  isValid: boolean;
+  parsedData?: TelegramInitData;
+  error?: string;
 }
