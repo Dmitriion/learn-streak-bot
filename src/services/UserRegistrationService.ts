@@ -1,44 +1,24 @@
 
 import MockBackendService from './MockBackendService';
 import LoggingService from './LoggingService';
+import { N8NWebhookClient } from './registration/N8NWebhookClient';
+import { RegistrationConfigManager } from './registration/RegistrationConfigManager';
+import { UserRegistrationData, N8NWebhookResponse } from './registration/types';
 
-export interface UserRegistrationData {
-  user_id: string;
-  username?: string;
-  full_name: string;
-  course_status: 'not_started' | 'in_progress' | 'paused' | 'completed';
-  current_lesson: number;
-  last_activity: string;
-  score: number;
-  subscription_status?: 'free' | 'premium' | 'vip';
-  subscription_expires?: string;
-  payment_provider?: string;
-  telegram_data?: any;
-}
-
-export interface N8NWebhookResponse {
-  success: boolean;
-  message?: string;
-  user_exists?: boolean;
-  subscription_status?: any;
-}
+// Re-export types for backward compatibility
+export type { UserRegistrationData, N8NWebhookResponse };
 
 class UserRegistrationService {
   private static instance: UserRegistrationService;
-  private baseWebhookUrl = ''; // Пустой по умолчанию
   private mockBackend: MockBackendService;
   private logger: LoggingService;
-  private useMockMode = true; // По умолчанию используем Mock режим
+  private configManager: RegistrationConfigManager;
+  private webhookClient: N8NWebhookClient | null = null;
 
   constructor() {
     this.mockBackend = MockBackendService.getInstance();
     this.logger = LoggingService.getInstance();
-    
-    // Проверяем environment переменные
-    const envWebhookUrl = (globalThis as any).__N8N_WEBHOOK_URL__ || '';
-    if (envWebhookUrl) {
-      this.setWebhookUrl(envWebhookUrl);
-    }
+    this.configManager = new RegistrationConfigManager();
   }
 
   static getInstance(): UserRegistrationService {
@@ -49,53 +29,30 @@ class UserRegistrationService {
   }
 
   setWebhookUrl(url: string) {
-    this.baseWebhookUrl = url;
-    this.useMockMode = !url || url.length === 0;
+    this.configManager.setWebhookUrl(url);
     
-    this.logger.info('UserRegistrationService: Webhook URL установлен', { 
-      url: url ? '***configured***' : 'empty',
-      useMockMode: this.useMockMode 
-    });
+    if (url && url.length > 0) {
+      this.webhookClient = new N8NWebhookClient(url);
+    } else {
+      this.webhookClient = null;
+    }
   }
 
   isUsingMockMode(): boolean {
-    return this.useMockMode;
+    return this.configManager.isUsingMockMode();
   }
 
   async registerUser(userData: UserRegistrationData): Promise<N8NWebhookResponse> {
-    if (this.useMockMode) {
+    if (this.configManager.isUsingMockMode()) {
       return this.mockBackend.registerUser(userData);
     }
 
     try {
-      this.logger.info('UserRegistrationService: Отправка данных пользователя в N8N', { userId: userData.user_id });
-      
-      const response = await fetch(`${this.baseWebhookUrl}/webhook/user/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...userData,
-          subscription_status: 'free',
-          timestamp: new Date().toISOString(),
-          action: 'register'
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!this.webhookClient) {
+        throw new Error('Webhook client not initialized');
       }
-
-      const result = await response.json();
-      this.logger.info('UserRegistrationService: Ответ от N8N', result);
       
-      return {
-        success: true,
-        message: result.message || 'Регистрация успешна',
-        user_exists: result.user_exists || false,
-        subscription_status: result.subscription_status
-      };
+      return await this.webhookClient.registerUser(userData);
     } catch (error) {
       this.logger.error('UserRegistrationService: Ошибка регистрации пользователя', { error, userId: userData.user_id });
       
@@ -106,34 +63,16 @@ class UserRegistrationService {
   }
 
   async checkUserExists(userId: string): Promise<N8NWebhookResponse> {
-    if (this.useMockMode) {
+    if (this.configManager.isUsingMockMode()) {
       return this.mockBackend.checkUserExists(userId);
     }
 
     try {
-      const response = await fetch(`${this.baseWebhookUrl}/webhook/user/check`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          action: 'check_exists',
-          timestamp: new Date().toISOString()
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!this.webhookClient) {
+        throw new Error('Webhook client not initialized');
       }
-
-      const result = await response.json();
-      return {
-        success: true,
-        user_exists: result.user_exists || false,
-        message: result.message,
-        subscription_status: result.subscription_status
-      };
+      
+      return await this.webhookClient.checkUserExists(userId);
     } catch (error) {
       this.logger.error('UserRegistrationService: Ошибка проверки пользователя', { error, userId });
       
@@ -143,22 +82,16 @@ class UserRegistrationService {
   }
 
   async updateUserActivity(userId: string): Promise<void> {
-    if (this.useMockMode) {
+    if (this.configManager.isUsingMockMode()) {
       return this.mockBackend.updateUserActivity(userId);
     }
 
     try {
-      await fetch(`${this.baseWebhookUrl}/webhook/user/activity`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          last_activity: new Date().toISOString(),
-          action: 'update_activity'
-        }),
-      });
+      if (!this.webhookClient) {
+        throw new Error('Webhook client not initialized');
+      }
+      
+      await this.webhookClient.updateUserActivity(userId);
     } catch (error) {
       this.logger.error('UserRegistrationService: Ошибка обновления активности', { error, userId });
       // Fallback на Mock режим
@@ -167,33 +100,16 @@ class UserRegistrationService {
   }
 
   async updateSubscription(userId: string, subscriptionData: any): Promise<N8NWebhookResponse> {
-    if (this.useMockMode) {
+    if (this.configManager.isUsingMockMode()) {
       return this.mockBackend.updateSubscription(userId, subscriptionData);
     }
 
     try {
-      const response = await fetch(`${this.baseWebhookUrl}/webhook/subscription/update`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          ...subscriptionData,
-          timestamp: new Date().toISOString(),
-          action: 'update_subscription'
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!this.webhookClient) {
+        throw new Error('Webhook client not initialized');
       }
-
-      const result = await response.json();
-      return {
-        success: true,
-        message: result.message || 'Подписка обновлена'
-      };
+      
+      return await this.webhookClient.updateSubscription(userId, subscriptionData);
     } catch (error) {
       this.logger.error('UserRegistrationService: Ошибка обновления подписки', { error, userId });
       
