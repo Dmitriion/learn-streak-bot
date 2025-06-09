@@ -36,20 +36,6 @@ export interface EngagementMetrics {
   return_visits: number;
 }
 
-export interface TelegramMetrics {
-  user_id: string;
-  telegram_user_id: number;
-  app_version: string;
-  platform: 'ios' | 'android' | 'web';
-  theme: 'light' | 'dark';
-  viewport_height: number;
-  is_expanded: boolean;
-  haptic_feedback_enabled: boolean;
-  back_button_clicks: number;
-  main_button_clicks: number;
-  settings_button_clicks: number;
-}
-
 export interface AnalyticsReport {
   period: 'day' | 'week' | 'month' | 'quarter';
   start_date: string;

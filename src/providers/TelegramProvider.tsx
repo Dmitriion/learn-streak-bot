@@ -3,20 +3,29 @@ import React from 'react';
 import TelegramContext from '../contexts/TelegramContext';
 import { useTelegramWebApp } from '../hooks/useTelegramWebApp';
 import { useTelegramAuth } from '../hooks/useTelegramAuth';
-import { TelegramProviderProps, TelegramContextType } from '../types/TelegramTypes';
+import { TelegramProviderProps, TelegramContextType, TelegramPaymentStatus } from '../types/TelegramTypes';
 
 export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) => {
   const webAppFeatures = useTelegramWebApp();
   const authFeatures = useTelegramAuth();
 
+  // Приводим типы к соответствию TelegramContextType
   const value: TelegramContextType = {
     ...authFeatures,
     ...webAppFeatures,
-    // Добавляем недостающие обязательные поля
-    isInitialized: webAppFeatures.isInitialized || false,
+    // Исправляем типы для обязательных полей
+    isInitialized: webAppFeatures.isReady || false,
     themeParams: webAppFeatures.themeParams || {},
     platform: webAppFeatures.platform || 'web',
-    version: webAppFeatures.version || '1.0'
+    version: webAppFeatures.version || '1.0',
+    // Исправляем типы для openInvoice
+    openInvoice: (url: string, callback?: (status: TelegramPaymentStatus) => void) => {
+      if (webAppFeatures.openInvoice) {
+        webAppFeatures.openInvoice(url, callback ? (status: string) => {
+          callback(status as TelegramPaymentStatus);
+        } : undefined);
+      }
+    }
   };
 
   return (
