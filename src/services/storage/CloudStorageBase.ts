@@ -3,23 +3,18 @@ import LoggingService from '../LoggingService';
 import { CloudStorageData } from '../../types/metrics';
 import { hasCloudStorage } from '../../utils/telegramTypeGuards';
 
-abstract class CloudStorageBase {
+export abstract class CloudStorageBase {
   protected logger: LoggingService;
 
   constructor() {
     this.logger = LoggingService.getInstance();
   }
 
-  /**
-   * Проверка доступности облачного хранилища
-   */
   protected isCloudStorageAvailable(): boolean {
     return hasCloudStorage();
   }
 
-  /**
-   * Безопасное сохранение данных с fallback
-   */
+  // Основные методы для работы с облачным хранилищем
   async save(key: string, data: CloudStorageData): Promise<boolean> {
     try {
       if (this.isCloudStorageAvailable()) {
@@ -33,9 +28,6 @@ abstract class CloudStorageBase {
     }
   }
 
-  /**
-   * Безопасная загрузка данных с fallback
-   */
   async load(key: string): Promise<CloudStorageData | null> {
     try {
       if (this.isCloudStorageAvailable()) {
@@ -49,15 +41,48 @@ abstract class CloudStorageBase {
     }
   }
 
-  /**
-   * Абстрактные методы для реализации в наследниках
-   */
+  async remove(key: string): Promise<boolean> {
+    try {
+      if (this.isCloudStorageAvailable()) {
+        return await this.removeFromCloud(key);
+      } else {
+        return this.removeFromLocalStorage(key);
+      }
+    } catch (error) {
+      this.logger.error('Ошибка удаления данных', { error, key });
+      return this.removeFromLocalStorage(key);
+    }
+  }
+
+  // Методы для совместимости с старым API
+  async setItem(key: string, data: any): Promise<boolean> {
+    return this.save(key, data);
+  }
+
+  async getItem(key: string): Promise<any> {
+    return this.load(key);
+  }
+
+  async getKeys(): Promise<string[]> {
+    try {
+      if (this.isCloudStorageAvailable()) {
+        return await this.getCloudKeys();
+      } else {
+        return this.getLocalStorageKeys();
+      }
+    } catch (error) {
+      this.logger.error('Ошибка получения ключей', { error });
+      return this.getLocalStorageKeys();
+    }
+  }
+
+  // Абстрактные методы для реализации в наследниках
   protected abstract saveToCloud(key: string, data: CloudStorageData): Promise<boolean>;
   protected abstract loadFromCloud(key: string): Promise<CloudStorageData | null>;
+  protected abstract removeFromCloud(key: string): Promise<boolean>;
+  protected abstract getCloudKeys(): Promise<string[]>;
 
-  /**
-   * Fallback методы для localStorage
-   */
+  // Fallback методы для localStorage
   private saveToLocalStorage(key: string, data: CloudStorageData): boolean {
     try {
       localStorage.setItem(key, JSON.stringify(data));
@@ -84,24 +109,6 @@ abstract class CloudStorageBase {
     }
   }
 
-  /**
-   * Удаление данных
-   */
-  async remove(key: string): Promise<boolean> {
-    try {
-      if (this.isCloudStorageAvailable()) {
-        return await this.removeFromCloud(key);
-      } else {
-        return this.removeFromLocalStorage(key);
-      }
-    } catch (error) {
-      this.logger.error('Ошибка удаления данных', { error, key });
-      return this.removeFromLocalStorage(key);
-    }
-  }
-
-  protected abstract removeFromCloud(key: string): Promise<boolean>;
-
   private removeFromLocalStorage(key: string): boolean {
     try {
       localStorage.removeItem(key);
@@ -109,6 +116,26 @@ abstract class CloudStorageBase {
       return true;
     } catch (error) {
       this.logger.error('Ошибка удаления из localStorage', { error, key });
+      return false;
+    }
+  }
+
+  private getLocalStorageKeys(): string[] {
+    try {
+      return Object.keys(localStorage);
+    } catch (error) {
+      this.logger.error('Ошибка получения ключей localStorage', { error });
+      return [];
+    }
+  }
+
+  // Метод для fallback на localStorage (для совместимости)
+  protected fallbackToLocalStorage(key: string, data: string): boolean {
+    try {
+      localStorage.setItem(key, data);
+      return true;
+    } catch (error) {
+      this.logger.error('Fallback localStorage ошибка', { error, key });
       return false;
     }
   }

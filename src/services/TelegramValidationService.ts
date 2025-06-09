@@ -1,4 +1,3 @@
-
 import LoggingService from './LoggingService';
 import SecurityValidationService from './validation/SecurityValidationService';
 import ContentValidationService from './validation/ContentValidationService';
@@ -17,12 +16,12 @@ import {
 
 interface ParsedInitData {
   user?: TelegramUser;
-  auth_date?: string;
+  auth_date?: number;
   hash?: string;
   start_param?: string;
   chat_type?: string;
   chat_instance?: string;
-  [key: string]: string | TelegramUser | undefined;
+  [key: string]: string | number | TelegramUser | undefined;
 }
 
 class TelegramValidationService {
@@ -56,17 +55,12 @@ class TelegramValidationService {
     return isTelegramWebAppAvailable();
   }
 
-  /**
-   * Улучшенная валидация initData для Telegram Mini App
-   */
   validateInitData(initData: string): InitDataValidationResult {
     try {
-      // В Telegram Mini App среде используем встроенную валидацию
       if (this.isTelegramEnvironment()) {
         return this.validateTelegramWebAppData();
       }
 
-      // Fallback валидация для development/testing
       if (!initData || initData.length === 0) {
         if (this.isDevelopmentMode()) {
           this.logger.warn('Development режим: пропуск валидации пустого initData');
@@ -75,7 +69,6 @@ class TelegramValidationService {
         return { isValid: false, error: 'InitData пуст' };
       }
 
-      // Парсим URL-encoded данные
       const urlParams = new URLSearchParams(initData);
       const data: ParsedInitData = {};
       
@@ -91,20 +84,20 @@ class TelegramValidationService {
           } catch {
             return { isValid: false, error: 'Невалидные данные пользователя' };
           }
+        } else if (key === 'auth_date') {
+          data[key] = parseInt(value);
         } else {
           data[key] = value;
         }
       }
 
-      // Базовые проверки
-      const authDate = data.auth_date ? parseInt(data.auth_date) : NaN;
-      if (isNaN(authDate)) {
+      const authDate = data.auth_date;
+      if (!authDate || isNaN(authDate)) {
         return { isValid: false, error: 'Невалидная auth_date' };
       }
 
-      // Проверяем возраст данных (не старше 1 часа)
       const currentTime = Math.floor(Date.now() / 1000);
-      const maxAge = 3600; // 1 час
+      const maxAge = 3600;
 
       if (currentTime - authDate > maxAge) {
         if (!this.isDevelopmentMode()) {
@@ -113,7 +106,6 @@ class TelegramValidationService {
         this.logger.warn('Development режим: пропуск проверки возраста initData');
       }
 
-      // Дополнительные проверки безопасности
       const securityCheck = this.securityService.performSecurityChecks(data);
       if (!securityCheck.isValid) {
         return { isValid: false, error: securityCheck.error };
@@ -127,7 +119,6 @@ class TelegramValidationService {
     } catch (error) {
       this.logger.error('Ошибка валидации initData:', error);
       
-      // В development режиме возвращаем mock данные
       if (this.isDevelopmentMode()) {
         this.logger.warn('Development режим: возврат mock данных из-за ошибки');
         return { isValid: true, parsedData: this.createMockInitData() };
@@ -137,9 +128,6 @@ class TelegramValidationService {
     }
   }
 
-  /**
-   * Валидация через Telegram WebApp API
-   */
   private validateTelegramWebAppData(): InitDataValidationResult {
     try {
       const webApp = window.Telegram?.WebApp;
@@ -147,7 +135,6 @@ class TelegramValidationService {
         return { isValid: false, error: 'Telegram WebApp API недоступен' };
       }
 
-      // Проверяем наличие пользователя
       if (!hasTelegramUser()) {
         if (this.isDevelopmentMode()) {
           this.logger.warn('Telegram WebApp: пользователь не найден, используем mock данные');
@@ -161,17 +148,15 @@ class TelegramValidationService {
         return { isValid: false, error: 'Невалидные данные пользователя' };
       }
 
-      // Создаем parsedData из Telegram WebApp
       const parsedData: TelegramInitData = {
         user,
-        auth_date: Math.floor(Date.now() / 1000), // Текущее время
+        auth_date: Math.floor(Date.now() / 1000),
         hash: 'telegram_webapp_validated',
         start_param: webApp.initDataUnsafe.start_param,
         chat_type: webApp.initDataUnsafe.chat_type,
         chat_instance: webApp.initDataUnsafe.chat_instance
       };
 
-      // Дополнительные проверки безопасности
       const securityCheck = this.securityService.performSecurityChecks(parsedData);
       if (!securityCheck.isValid) {
         return { isValid: false, error: securityCheck.error };
@@ -191,9 +176,6 @@ class TelegramValidationService {
     }
   }
 
-  /**
-   * Создание mock данных для development
-   */
   private createMockInitData(): TelegramInitData {
     return {
       user: {
@@ -208,30 +190,18 @@ class TelegramValidationService {
     };
   }
 
-  /**
-   * Валидация данных пользователя Telegram
-   */
   validateUserData(telegramUser: TelegramUser): UserValidationResult {
     return this.contentService.validateUserData(telegramUser);
   }
 
-  /**
-   * Валидация webhook URL для безопасности
-   */
   validateWebhookUrl(url: string): ValidationResult {
     return this.securityService.validateWebhookUrl(url);
   }
 
-  /**
-   * Защита от replay атак
-   */
   validateNonce(nonce: string): boolean {
     return this.securityService.validateNonce(nonce);
   }
 
-  /**
-   * Получение информации о текущей среде
-   */
   getEnvironmentInfo() {
     return {
       isDevelopment: this.isDevelopmentMode(),

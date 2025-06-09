@@ -2,11 +2,12 @@
 import LoggingService from '../LoggingService';
 import { MetricsData, PerformanceMetrics } from '../../types/metrics';
 
-class MetricsCollector {
+export class MetricsCollector {
   private static instance: MetricsCollector;
   private logger: LoggingService;
   private metrics: MetricsData | null = null;
   private startTime: number = Date.now();
+  private customMetrics: { [key: string]: number } = {};
 
   constructor() {
     this.logger = LoggingService.getInstance();
@@ -65,6 +66,50 @@ class MetricsCollector {
     this.metrics.performance.errorCount++;
   }
 
+  // Новые методы для совместимости с PerformanceService
+  recordMetric(name: string, value: number) {
+    this.customMetrics[name] = value;
+  }
+
+  startTiming(label: string): () => void {
+    const startTime = Date.now();
+    return () => {
+      const duration = Date.now() - startTime;
+      this.recordMetric(label, duration);
+    };
+  }
+
+  measureComponentRender(componentName: string, renderFunction: () => void) {
+    const endTiming = this.startTiming(`component_render_${componentName}`);
+    renderFunction();
+    endTiming();
+  }
+
+  async measureAPICall<T>(label: string, apiCall: () => Promise<T>): Promise<T> {
+    const endTiming = this.startTiming(`api_call_${label}`);
+    try {
+      const result = await apiCall();
+      endTiming();
+      return result;
+    } catch (error) {
+      endTiming();
+      throw error;
+    }
+  }
+
+  getMetrics(): { [key: string]: number } {
+    return { ...this.customMetrics };
+  }
+
+  flushMetrics() {
+    this.customMetrics = {};
+  }
+
+  clearMetrics() {
+    this.customMetrics = {};
+    this.logger.info('Кастомные метрики очищены');
+  }
+
   private getMemoryUsage(): number {
     if ('memory' in performance) {
       const memoryInfo = (performance as any).memory;
@@ -74,7 +119,6 @@ class MetricsCollector {
   }
 
   private getBundleSize(): number {
-    // Примерная оценка размера bundle
     if ('getEntriesByType' in performance) {
       const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
       return resources
@@ -84,17 +128,8 @@ class MetricsCollector {
     return 0;
   }
 
-  getMetrics(): MetricsData | null {
-    return this.metrics ? { ...this.metrics } : null;
-  }
-
   exportMetrics(): string {
     return JSON.stringify(this.metrics, null, 2);
-  }
-
-  clearMetrics() {
-    this.metrics = null;
-    this.logger.info('Метрики очищены');
   }
 }
 

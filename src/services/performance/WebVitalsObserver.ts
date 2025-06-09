@@ -1,7 +1,6 @@
-
 import LoggingService from '../LoggingService';
 import ErrorService from '../ErrorService';
-import { MetricsCollector } from './MetricsCollector';
+import MetricsCollector from './MetricsCollector';
 
 export class WebVitalsObserver {
   private logger: LoggingService;

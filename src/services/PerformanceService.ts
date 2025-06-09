@@ -1,6 +1,6 @@
 
 import { WebVitalsObserver } from './performance/WebVitalsObserver';
-import { MetricsCollector } from './performance/MetricsCollector';
+import MetricsCollector from './performance/MetricsCollector';
 import { PerformanceReporter } from './performance/PerformanceReporter';
 import { WebVitalsMetrics, CustomMetrics, PerformanceReport } from './performance/types';
 
@@ -11,7 +11,7 @@ class PerformanceService {
   private performanceReporter: PerformanceReporter;
 
   constructor() {
-    this.metricsCollector = new MetricsCollector();
+    this.metricsCollector = MetricsCollector.getInstance();
     this.performanceReporter = new PerformanceReporter();
     this.webVitalsObserver = new WebVitalsObserver(this.metricsCollector);
   }
