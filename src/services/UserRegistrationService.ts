@@ -1,11 +1,8 @@
 
-import MockBackendService from './mock/MockBackendService';
-import LoggingService from './LoggingService';
-import FallbackManager from './fallback/FallbackManager';
-import EnvironmentManager from './environment/EnvironmentManager';
-import HealthCheckService from './health/HealthCheckService';
+import { UserRegistrationCore } from './registration/UserRegistrationCore';
+import { UserActivityManager } from './registration/UserActivityManager';
+import { RegistrationHealthMonitor } from './registration/RegistrationHealthMonitor';
 import { N8NWebhookClient } from './registration/N8NWebhookClient';
-import { RegistrationConfigManager } from './registration/RegistrationConfigManager';
 import { UserRegistrationData, N8NWebhookResponse } from './registration/types';
 
 // Re-export types for backward compatibility
@@ -13,23 +10,15 @@ export type { UserRegistrationData, N8NWebhookResponse };
 
 class UserRegistrationService {
   private static instance: UserRegistrationService;
-  private mockBackend: MockBackendService;
-  private logger: LoggingService;
-  private configManager: RegistrationConfigManager;
+  private registrationCore: UserRegistrationCore;
+  private activityManager: UserActivityManager;
+  private healthMonitor: RegistrationHealthMonitor;
   private webhookClient: N8NWebhookClient | null = null;
-  private fallbackManager: FallbackManager;
-  private environmentManager: EnvironmentManager;
-  private healthCheckService: HealthCheckService;
 
   constructor() {
-    this.mockBackend = MockBackendService.getInstance();
-    this.logger = LoggingService.getInstance();
-    this.configManager = new RegistrationConfigManager();
-    this.fallbackManager = FallbackManager.getInstance();
-    this.environmentManager = EnvironmentManager.getInstance();
-    this.healthCheckService = HealthCheckService.getInstance();
-    
-    this.setupHealthChecks();
+    this.registrationCore = new UserRegistrationCore();
+    this.activityManager = new UserActivityManager();
+    this.healthMonitor = new RegistrationHealthMonitor();
   }
 
   static getInstance(): UserRegistrationService {
@@ -39,184 +28,57 @@ class UserRegistrationService {
     return UserRegistrationService.instance;
   }
 
-  private setupHealthChecks() {
-    this.healthCheckService.registerService('user_registration', async () => {
-      if (this.environmentManager.shouldUseMockData()) {
-        return { healthy: true };
-      }
-      
-      if (!this.webhookClient) {
-        return { healthy: false, error: 'Webhook client не инициализирован' };
-      }
-      
-      try {
-        // Простая проверка доступности webhook
-        const result = await this.webhookClient.checkUserExists('health_check_user');
-        return { healthy: true };
-      } catch (error) {
-        return { healthy: false, error: error.message };
-      }
-    });
-  }
-
   setWebhookUrl(url: string) {
-    this.configManager.setWebhookUrl(url);
+    this.registrationCore.setWebhookUrl(url);
     
+    // Configure webhook client for all dependent services
     if (url && url.length > 0) {
       this.webhookClient = new N8NWebhookClient(url);
+      this.activityManager.setWebhookClient(this.webhookClient);
+      this.healthMonitor.setWebhookClient(this.webhookClient);
     } else {
       this.webhookClient = null;
+      this.activityManager.setWebhookClient(null);
+      this.healthMonitor.setWebhookClient(null);
     }
   }
 
   isUsingMockMode(): boolean {
-    return this.environmentManager.shouldUseMockData();
+    return this.registrationCore.isUsingMockMode();
   }
 
   async registerUser(userData: UserRegistrationData): Promise<N8NWebhookResponse> {
-    if (this.isUsingMockMode()) {
-      this.logger.info('UserRegistrationService: используем Mock режим для регистрации');
-      return this.mockBackend.registerUser(userData);
-    }
-
-    return await this.fallbackManager.executeWithFallback(
-      'user_registration_webhook',
-      async () => {
-        if (!this.webhookClient) {
-          throw new Error('Webhook client не инициализирован');
-        }
-        return await this.webhookClient.registerUser(userData);
-      },
-      {
-        strategy: 'graceful-degradation',
-        config: { maxRetries: 3, timeout: 8000 },
-        fallbackFunction: async () => {
-          this.logger.warn('UserRegistrationService: переключение на Mock режим из-за недоступности webhook');
-          return this.mockBackend.registerUser(userData);
-        }
-      }
-    );
+    return await this.registrationCore.registerUser(userData);
   }
 
   async checkUserExists(userId: string): Promise<N8NWebhookResponse> {
-    if (this.isUsingMockMode()) {
-      return this.mockBackend.checkUserExists(userId);
-    }
-
-    return await this.fallbackManager.executeWithFallback(
-      'user_check_webhook',
-      async () => {
-        if (!this.webhookClient) {
-          throw new Error('Webhook client не инициализирован');
-        }
-        return await this.webhookClient.checkUserExists(userId);
-      },
-      {
-        strategy: 'graceful-degradation',
-        config: { maxRetries: 2, timeout: 5000 },
-        fallbackFunction: async () => {
-          this.logger.warn('UserRegistrationService: fallback на Mock режим для проверки пользователя');
-          return this.mockBackend.checkUserExists(userId);
-        }
-      }
-    );
+    return await this.registrationCore.checkUserExists(userId);
   }
 
   async updateUserActivity(userId: string): Promise<void> {
-    if (this.isUsingMockMode()) {
-      return this.mockBackend.updateUserActivity(userId);
-    }
-
-    try {
-      await this.fallbackManager.executeWithFallback(
-        'user_activity_update',
-        async () => {
-          if (!this.webhookClient) {
-            throw new Error('Webhook client не инициализирован');
-          }
-          await this.webhookClient.updateUserActivity(userId);
-        },
-        {
-          strategy: 'graceful-degradation',
-          config: { maxRetries: 1, timeout: 3000 },
-          fallbackFunction: async () => {
-            return this.mockBackend.updateUserActivity(userId);
-          }
-        }
-      );
-    } catch (error) {
-      this.logger.error('UserRegistrationService: ошибка обновления активности', { error, userId });
-      // Fallback на Mock режим как последний resort
-      return this.mockBackend.updateUserActivity(userId);
-    }
+    return await this.activityManager.updateUserActivity(userId);
   }
 
   async updateSubscription(userId: string, subscriptionData: any): Promise<N8NWebhookResponse> {
-    if (this.isUsingMockMode()) {
-      return this.mockBackend.updateSubscription(userId, subscriptionData);
-    }
-
-    return await this.fallbackManager.executeWithFallback(
-      'subscription_update_webhook',
-      async () => {
-        if (!this.webhookClient) {
-          throw new Error('Webhook client не инициализирован');
-        }
-        return await this.webhookClient.updateSubscription(userId, subscriptionData);
-      },
-      {
-        strategy: 'graceful-degradation',
-        config: { maxRetries: 3, timeout: 8000 },
-        fallbackFunction: async () => {
-          this.logger.warn('UserRegistrationService: fallback на Mock режим для обновления подписки');
-          return this.mockBackend.updateSubscription(userId, subscriptionData);
-        }
-      }
-    );
+    return await this.registrationCore.updateSubscription(userId, subscriptionData);
   }
 
   // Методы для управления Mock режимом
   getMockData() {
-    if (!this.isUsingMockMode()) {
-      this.logger.warn('UserRegistrationService: попытка получить mock данные в production');
-      return [];
-    }
-    return this.mockBackend.getAllUsers();
+    return this.registrationCore.getMockData();
   }
 
   clearMockData() {
-    if (!this.isUsingMockMode()) {
-      this.logger.warn('UserRegistrationService: попытка очистить mock данные в production');
-      return;
-    }
-    this.mockBackend.clearAllData();
+    this.registrationCore.clearMockData();
   }
 
   // Новые методы для мониторинга и диагностики
   async getServiceHealth() {
-    const health = this.healthCheckService.getServiceHealth('user_registration');
-    const environmentMode = this.environmentManager.getMode();
-    const usingMockMode = this.isUsingMockMode();
-    
-    return {
-      health: health?.status || 'unknown',
-      lastCheck: health?.lastCheck,
-      errorCount: health?.errorCount || 0,
-      environment: environmentMode,
-      mockMode: usingMockMode,
-      webhookConfigured: !!this.webhookClient
-    };
+    return await this.healthMonitor.getServiceHealth();
   }
 
   getDetailedStatus() {
-    return {
-      mode: this.environmentManager.getMode(),
-      mockEnabled: this.isUsingMockMode(),
-      webhookUrl: this.configManager.getWebhookUrl() ? '***configured***' : 'not set',
-      webhookClient: !!this.webhookClient,
-      fallbacksEnabled: this.environmentManager.shouldEnableFallbacks(),
-      mockDataVersion: this.isUsingMockMode() ? this.mockBackend.getMockDataVersion() : null
-    };
+    return this.registrationCore.getDetailedStatus();
   }
 }
 
