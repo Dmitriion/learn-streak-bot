@@ -12,7 +12,8 @@ import AppLoader from './components/app/AppLoader';
 import AppStyles from './components/app/AppStyles';
 import AppRouter from './components/app/AppRouter';
 import Registration from './components/Registration';
-import SetupWizard from './components/setup/SetupWizard';
+import EnvGeneratorWizard from './components/setup/EnvGeneratorWizard';
+import AdminPanel from './components/admin/AdminPanel';
 
 const TelegramApp = () => {
   const { 
@@ -27,7 +28,7 @@ const TelegramApp = () => {
   } = useTelegram();
   
   const { currentRoute, params, isNavigationReady } = useTelegramNavigation();
-  const { shouldShowWizard, completeSetup } = useSetupWizard();
+  const { shouldShowWizard, isAdminAccess, configurationStatus } = useSetupWizard();
 
   useAppInitialization();
   useThemeAndViewport({ theme, viewportHeight });
@@ -55,11 +56,41 @@ const TelegramApp = () => {
     return <AppLoader />;
   }
 
-  // Показываем мастер настройки если требуется
-  if (shouldShowWizard) {
+  // Показываем админ-панель если запрошена
+  if (currentRoute === 'admin' && isAdminAccess) {
     return (
       <TelegramErrorBoundary>
-        <SetupWizard />
+        <AdminPanel />
+      </TelegramErrorBoundary>
+    );
+  }
+
+  // Показываем мастер настройки только администраторам
+  if (shouldShowWizard && isAdminAccess) {
+    return (
+      <TelegramErrorBoundary>
+        <EnvGeneratorWizard />
+      </TelegramErrorBoundary>
+    );
+  }
+
+  // Если приложение не настроено и пользователь не админ - показываем сообщение
+  if (configurationStatus !== 'complete' && !isAdminAccess) {
+    return (
+      <TelegramErrorBoundary>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+          <div className="max-w-md mx-auto text-center">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              Приложение настраивается
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Администратор настраивает приложение. Попробуйте зайти позже.
+            </p>
+            <div className="text-sm text-gray-500">
+              Статус: {configurationStatus === 'partial' ? 'Частично настроено' : 'Требует настройки'}
+            </div>
+          </div>
+        </div>
       </TelegramErrorBoundary>
     );
   }
@@ -80,23 +111,7 @@ const TelegramApp = () => {
     );
   }
 
-  // Если пользователь зарегистрирован - показываем основное приложение
-  if (isRegistered) {
-    return (
-      <TelegramErrorBoundary>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">
-          <AppStyles theme={theme} viewportHeight={viewportHeight} />
-          <AppRouter 
-            currentRoute={currentRoute} 
-            params={params} 
-            isLoading={!isNavigationReady}
-          />
-        </div>
-      </TelegramErrorBoundary>
-    );
-  }
-
-  // Fallback для неопределенных состояний - показываем основное приложение
+  // Основное приложение для зарегистрированных пользователей
   return (
     <TelegramErrorBoundary>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 telegram-app">

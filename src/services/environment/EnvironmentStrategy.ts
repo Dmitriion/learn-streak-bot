@@ -38,6 +38,10 @@ export class DevelopmentStrategy implements EnvironmentStrategy {
       warnings.push('Telegram Bot Token не настроен');
     }
 
+    if (!import.meta.env.VITE_ADMIN_USER_IDS) {
+      warnings.push('Admin User IDs не настроены - админский доступ доступен всем в dev режиме');
+    }
+
     return {
       isValid: errors.length === 0,
       errors,
@@ -78,12 +82,34 @@ export class ProductionStrategy implements EnvironmentStrategy {
       errors.push('N8N Webhook URL обязателен в production');
     }
 
+    if (!import.meta.env.VITE_ADMIN_USER_IDS) {
+      errors.push('Admin User IDs обязательны в production для безопасности');
+    }
+
     if (import.meta.env.VITE_ENABLE_MOCK_MODE === 'true') {
       errors.push('Mock режим не должен быть включен в production');
     }
 
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-      errors.push('HTTPS обязателен в production');
+    if (typeof window !== 'undefined') {
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        errors.push('HTTPS обязателен в production');
+      }
+    }
+
+    // Проверяем правильность формата Admin User IDs
+    const adminIds = import.meta.env.VITE_ADMIN_USER_IDS;
+    if (adminIds) {
+      const parsedIds = adminIds.split(',').map(id => parseInt(id.trim()));
+      const invalidIds = parsedIds.filter(id => isNaN(id));
+      if (invalidIds.length > 0) {
+        errors.push('Некорректный формат Admin User IDs - должны быть числа через запятую');
+      }
+    }
+
+    // Проверяем URL формат
+    const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
+    if (webhookUrl && !webhookUrl.startsWith('https://')) {
+      warnings.push('Webhook URL должен использовать HTTPS в production');
     }
 
     return {

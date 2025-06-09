@@ -1,8 +1,18 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { useTelegram } from '../providers/TelegramProvider';
 
-export type TelegramRoute = 'dashboard' | 'lessons' | 'test' | 'analytics' | 'advanced-analytics' | 'lesson-detail' | 'subscription' | 'payment-success' | 'settings' | 'not-found';
+export type TelegramRoute = 
+  | 'dashboard'           // Главная панель
+  | 'lessons'            // Список уроков
+  | 'lesson-detail'      // Детали урока
+  | 'test'              // Прохождение теста
+  | 'analytics'         // Базовая аналитика
+  | 'advanced-analytics' // Продвинутая аналитика
+  | 'subscription'      // Управление подпиской
+  | 'settings'          // Настройки
+  | 'payment-success'   // Успешная оплата
+  | 'admin'             // Админ-панель
+  | 'not-found';        // 404 страница
 
 interface NavigationState {
   currentRoute: TelegramRoute;

@@ -1,64 +1,92 @@
 
 import { useState, useEffect } from 'react';
+import AdminAccessManager from '../services/admin/AdminAccessManager';
+import EnvironmentManager from '../services/environment/EnvironmentManager';
+import { useTelegram } from '../providers/TelegramProvider';
 
 export interface SetupWizardState {
   isSetupRequired: boolean;
   isSetupCompleted: boolean;
   shouldShowWizard: boolean;
+  isAdminAccess: boolean;
+  configurationStatus: 'complete' | 'partial' | 'missing';
 }
 
 export const useSetupWizard = () => {
+  const { user } = useTelegram();
   const [setupState, setSetupState] = useState<SetupWizardState>({
     isSetupRequired: false,
     isSetupCompleted: false,
-    shouldShowWizard: false
+    shouldShowWizard: false,
+    isAdminAccess: false,
+    configurationStatus: 'missing'
   });
 
-  useEffect(() => {
-    // Проверяем, нужно ли показать мастер настройки
-    const checkSetupRequirement = () => {
-      // Проверяем в localStorage признак завершенной настройки
-      const setupCompleted = localStorage.getItem('setup_completed') === 'true';
-      
-      // Проверяем наличие основных настроек
-      const hasTelegramConfig = localStorage.getItem('telegram_bot_configured') === 'true';
-      const hasWebhookUrl = localStorage.getItem('n8n_webhook_url') !== null;
-      
-      // Проверяем URL параметры - возможно пользователь хочет запустить настройку заново
-      const urlParams = new URLSearchParams(window.location.search);
-      const forceSetup = urlParams.get('setup') === 'true';
-      
-      const isSetupRequired = !setupCompleted || forceSetup;
-      const shouldShow = isSetupRequired && !setupCompleted;
-      
-      setSetupState({
-        isSetupRequired,
-        isSetupCompleted: setupCompleted,
-        shouldShowWizard: shouldShow
-      });
-    };
+  const adminManager = AdminAccessManager.getInstance();
+  const environmentManager = EnvironmentManager.getInstance();
 
+  useEffect(() => {
     checkSetupRequirement();
-  }, []);
+  }, [user]);
+
+  const checkSetupRequirement = () => {
+    const userId = user?.id;
+    const isAdminAccess = adminManager.hasAdminAccess(userId);
+    const shouldShowWizard = adminManager.shouldShowSetupWizard(userId);
+    
+    // Определяем статус конфигурации на основе environment переменных
+    const configurationStatus = getConfigurationStatus();
+    const isSetupCompleted = configurationStatus === 'complete';
+    const isSetupRequired = configurationStatus !== 'complete';
+
+    adminManager.logAdminAccess(userId, 'setup_wizard_check');
+
+    setSetupState({
+      isSetupRequired,
+      isSetupCompleted,
+      shouldShowWizard,
+      isAdminAccess,
+      configurationStatus
+    });
+  };
+
+  const getConfigurationStatus = (): 'complete' | 'partial' | 'missing' => {
+    const strategy = environmentManager.getStrategy();
+    const validation = strategy.validateConfiguration();
+
+    if (environmentManager.isProduction()) {
+      // В production требуем полную конфигурацию
+      return validation.isValid && validation.errors.length === 0 ? 'complete' : 'missing';
+    }
+
+    // В development проверяем наличие основных настроек
+    const hasWebhookUrl = !!import.meta.env.VITE_N8N_WEBHOOK_URL;
+    
+    if (hasWebhookUrl) {
+      return validation.errors.length === 0 ? 'complete' : 'partial';
+    }
+
+    return 'missing';
+  };
 
   const completeSetup = () => {
-    localStorage.setItem('setup_completed', 'true');
+    // В новой архитектуре setup завершается через environment переменные
+    // Этот метод теперь просто скрывает мастер для текущей сессии
     setSetupState(prev => ({
       ...prev,
-      isSetupCompleted: true,
       shouldShowWizard: false
     }));
   };
 
   const resetSetup = () => {
-    localStorage.removeItem('setup_completed');
-    localStorage.removeItem('telegram_bot_configured');
-    localStorage.removeItem('n8n_webhook_url');
-    setSetupState({
-      isSetupRequired: true,
-      isSetupCompleted: false,
-      shouldShowWizard: true
-    });
+    // Сброс setup теперь означает показать мастер админу заново
+    const userId = user?.id;
+    if (adminManager.hasAdminAccess(userId)) {
+      setSetupState(prev => ({
+        ...prev,
+        shouldShowWizard: true
+      }));
+    }
   };
 
   const skipSetup = () => {
@@ -68,10 +96,23 @@ export const useSetupWizard = () => {
     }));
   };
 
+  const forceShowSetup = () => {
+    // Принудительный показ мастера (для админ-панели)
+    const userId = user?.id;
+    if (adminManager.hasAdminAccess(userId)) {
+      setSetupState(prev => ({
+        ...prev,
+        shouldShowWizard: true
+      }));
+    }
+  };
+
   return {
     ...setupState,
     completeSetup,
     resetSetup,
-    skipSetup
+    skipSetup,
+    forceShowSetup,
+    getConfigurationStatus
   };
 };
