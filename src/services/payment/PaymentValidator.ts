@@ -91,7 +91,7 @@ class PaymentValidator {
   validateWebhookUrl(url: string): boolean {
     try {
       const parsedUrl = new URL(url);
-      if (!parsedUrl.protocol.startsWith('https') && process.env.NODE_ENV === 'production') {
+      if (!parsedUrl.protocol.startsWith('https') && import.meta.env.PROD) {
         this.errorService.handleValidationError('Webhook URL должен использовать HTTPS в production');
         return false;
       }

@@ -11,23 +11,18 @@ export class PerformanceReporter {
 
   async sendMetrics(metrics: PerformanceMetric[]) {
     try {
-      if (process.env.NODE_ENV === 'production') {
-        // В production отправляем на реальный endpoint
-        await fetch('/api/metrics', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            metrics,
-            userAgent: navigator.userAgent,
-            url: window.location.href,
-            timestamp: Date.now()
-          }),
+      // В production только логируем метрики локально
+      if (import.meta.env.PROD) {
+        this.logger.info('Performance metrics collected', { 
+          metricsCount: metrics.length,
+          timestamp: Date.now()
         });
+      } else {
+        // В development можем логировать детали
+        this.logger.debug('Performance metrics details', { metrics });
       }
     } catch (error) {
-      this.logger.error('Ошибка отправки метрик производительности', { error });
+      this.logger.error('Ошибка обработки метрик производительности', { error });
     }
   }
 
