@@ -1,6 +1,5 @@
 
-import LoggingService, { LogEntry } from '../LoggingService';
-import N8NIntegration from '../automation/N8NIntegration';
+import { LogEntry } from '../LoggingService';
 import ErrorService from '../ErrorService';
 
 export interface LogBatch {
@@ -20,17 +19,20 @@ export interface LoggingConfig {
   productionLevels: ('error' | 'warn' | 'info' | 'debug')[];
 }
 
+interface N8NIntegrationLike {
+  sendEvent(event: any): Promise<boolean>;
+}
+
 class LoggingRemoteService {
   private static instance: LoggingRemoteService;
-  private n8nIntegration: N8NIntegration;
   private errorService: ErrorService;
   private config: LoggingConfig;
   private pendingLogs: LogEntry[] = [];
   private lastFlushTime: number = 0;
   private isOnline: boolean = navigator.onLine;
+  private n8nIntegration: N8NIntegrationLike | null = null;
 
   constructor() {
-    this.n8nIntegration = N8NIntegration.getInstance();
     this.errorService = ErrorService.getInstance();
     this.config = this.getDefaultConfig();
     this.setupNetworkListeners();
@@ -41,6 +43,12 @@ class LoggingRemoteService {
       LoggingRemoteService.instance = new LoggingRemoteService();
     }
     return LoggingRemoteService.instance;
+  }
+
+  // Метод для отложенной инициализации N8N интеграции
+  setN8NIntegration(n8nIntegration: N8NIntegrationLike) {
+    this.n8nIntegration = n8nIntegration;
+    console.info('[LoggingRemoteService] N8N интеграция подключена');
   }
 
   private getDefaultConfig(): LoggingConfig {
@@ -92,22 +100,33 @@ class LoggingRemoteService {
     };
 
     try {
-      const success = await this.n8nIntegration.sendEvent({
-        type: 'logs_batch',
-        user_id: batch.userId || 'anonymous',
-        timestamp: batch.timestamp,
-        data: {
-          batch,
-          logCount: filteredLogs.length,
-          environment: batch.environment
+      // Если N8N интеграция доступна, используем её
+      if (this.n8nIntegration) {
+        const success = await this.n8nIntegration.sendEvent({
+          type: 'logs_batch',
+          user_id: batch.userId || 'anonymous',
+          timestamp: batch.timestamp,
+          data: {
+            batch,
+            logCount: filteredLogs.length,
+            environment: batch.environment
+          }
+        });
+
+        if (success) {
+          console.info(`[LoggingRemoteService] Отправлено ${filteredLogs.length} логов через N8N`);
         }
-      });
 
-      if (success) {
-        console.info(`[LoggingRemoteService] Отправлено ${filteredLogs.length} логов`);
+        return success;
+      } else {
+        // Fallback: сохраняем в localStorage для последующей отправки
+        const storedLogs = JSON.parse(localStorage.getItem('pending_logs') || '[]');
+        storedLogs.push(...filteredLogs);
+        localStorage.setItem('pending_logs', JSON.stringify(storedLogs.slice(-200))); // Ограничиваем размер
+        
+        console.info(`[LoggingRemoteService] Логи сохранены локально (N8N недоступен): ${filteredLogs.length}`);
+        return true;
       }
-
-      return success;
     } catch (error) {
       console.error('[LoggingRemoteService] Ошибка отправки логов:', error);
       return false;
@@ -162,6 +181,24 @@ class LoggingRemoteService {
 
   getConfig(): LoggingConfig {
     return { ...this.config };
+  }
+
+  // Метод для отправки сохраненных локально логов когда N8N станет доступен
+  async flushStoredLogs(): Promise<void> {
+    if (!this.n8nIntegration) return;
+
+    try {
+      const storedLogs = JSON.parse(localStorage.getItem('pending_logs') || '[]');
+      if (storedLogs.length > 0) {
+        const success = await this.sendLogs(storedLogs);
+        if (success) {
+          localStorage.removeItem('pending_logs');
+          console.info(`[LoggingRemoteService] Отправлены сохраненные логи: ${storedLogs.length}`);
+        }
+      }
+    } catch (error) {
+      console.error('[LoggingRemoteService] Ошибка отправки сохраненных логов:', error);
+    }
   }
 }
 

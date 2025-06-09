@@ -1,4 +1,4 @@
-import LoggingService from '../LoggingService';
+
 import ErrorService from '../ErrorService';
 import N8NIntegration from './N8NIntegration';
 import { AutomationConfig } from './AutomationConfig';
@@ -7,13 +7,11 @@ import { TelegramUser } from '../auth/types';
 import { toast } from '@/hooks/use-toast';
 
 export class AutomationEventManager {
-  private logger: LoggingService;
   private errorService: ErrorService;
   private n8nIntegration: N8NIntegration;
   private config: AutomationConfig;
 
   constructor(config: AutomationConfig, n8nIntegration: N8NIntegration) {
-    this.logger = LoggingService.getInstance();
     this.errorService = ErrorService.getInstance();
     this.config = config;
     this.n8nIntegration = n8nIntegration;
@@ -21,18 +19,18 @@ export class AutomationEventManager {
 
   async triggerEvent(event: AutomationEvent) {
     if (!this.config.isAutomationEnabled()) {
-      this.logger.debug('AutomationManager отключен, событие пропущено', { event: event.type });
+      console.debug('[AutomationEventManager] AutomationManager отключен, событие пропущено', { event: event.type });
       return;
     }
 
     if (!this.config.hasWebhookUrl()) {
-      this.logger.warn('N8N webhook URL не настроен', { event: event.type });
+      console.warn('[AutomationEventManager] N8N webhook URL не настроен', { event: event.type });
       this.showConfigurationWarning();
       return;
     }
 
     try {
-      this.logger.info('Отправка события в N8N', { event: event.type, userId: event.user_id });
+      console.info('[AutomationEventManager] Отправка события в N8N', { event: event.type, userId: event.user_id });
       const success = await this.n8nIntegration.sendEvent(event);
       
       if (success) {
@@ -41,7 +39,7 @@ export class AutomationEventManager {
         this.showErrorNotification(event.type, 'Ошибка отправки в N8N');
       }
     } catch (error) {
-      this.logger.error('Ошибка отправки события в N8N', { 
+      console.error('[AutomationEventManager] Ошибка отправки события в N8N', { 
         error: error instanceof Error ? error.message : 'Unknown error',
         event: event.type 
       });

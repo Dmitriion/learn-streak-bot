@@ -1,5 +1,4 @@
 
-import LoggingService from '../LoggingService';
 import N8NIntegration from './N8NIntegration';
 import { AutomationConfig } from './AutomationConfig';
 import { AutomationEventManager } from './AutomationEventManager';
@@ -10,14 +9,13 @@ import { TelegramUser } from '../auth/types';
 
 class AutomationManager {
   private static instance: AutomationManager;
-  private logger: LoggingService;
   private n8nIntegration: N8NIntegration;
   private config: AutomationConfig;
   private eventManager: AutomationEventManager;
   private healthService: AutomationHealthService;
 
   constructor() {
-    this.logger = LoggingService.getInstance();
+    console.info('[AutomationManager] Инициализация');
     this.n8nIntegration = N8NIntegration.getInstance();
     this.config = new AutomationConfig();
     this.eventManager = new AutomationEventManager(this.config, this.n8nIntegration);
@@ -40,17 +38,17 @@ class AutomationManager {
   setN8NWebhookUrl(url: string) {
     this.config.setN8NWebhookUrl(url);
     this.n8nIntegration.setWebhookUrl(url);
-    this.logger.info('N8N webhook URL обновлен', { url });
+    console.info('[AutomationManager] N8N webhook URL обновлен', { url });
   }
 
   enable() {
     this.config.enable();
-    this.logger.info('AutomationManager включен');
+    console.info('[AutomationManager] AutomationManager включен');
   }
 
   disable() {
     this.config.disable();
-    this.logger.info('AutomationManager отключен');
+    console.info('[AutomationManager] AutomationManager отключен');
   }
 
   async triggerEvent(event: AutomationEvent) {

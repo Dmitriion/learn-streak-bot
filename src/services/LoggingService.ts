@@ -39,6 +39,13 @@ class LoggingService {
     return LoggingService.instance;
   }
 
+  // Метод для отложенной инициализации N8N интеграции
+  initializeN8NIntegration(n8nIntegration: any) {
+    this.remoteService.setN8NIntegration(n8nIntegration);
+    // Отправляем сохраненные логи
+    this.remoteService.flushStoredLogs();
+  }
+
   private async initializeService() {
     if (this.isInitialized) return;
 
