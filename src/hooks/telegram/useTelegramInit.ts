@@ -1,6 +1,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import LoggingService from '../../services/LoggingService';
+import { 
+  safeEnableClosingConfirmation, 
+  safeDisableClosingConfirmation,
+  logWebAppCapabilities 
+} from '../../utils/telegram/webAppSupport';
 
 export const useTelegramInit = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -23,8 +28,9 @@ export const useTelegramInit = () => {
   const handleViewportChanged = useCallback(() => {
     if (window.Telegram?.WebApp) {
       const WebApp = window.Telegram.WebApp;
-      const height = (WebApp as any).viewportHeight || window.innerHeight;
-      const expanded = (WebApp as any).isExpanded || false;
+      // Используем правильную типизацию вместо (WebApp as any)
+      const height = WebApp.viewportHeight || window.innerHeight;
+      const expanded = WebApp.isExpanded || false;
       setViewportHeight(height);
       setIsExpanded(expanded);
       logger.debug('Viewport изменен', { height, expanded });
@@ -54,14 +60,17 @@ export const useTelegramInit = () => {
       
       logger.info('Инициализация Telegram WebApp', {});
       
+      // Логируем возможности WebApp API
+      logWebAppCapabilities();
+      
       // Инициализируем WebApp
       WebApp.ready();
       WebApp.expand();
       
-      // Устанавливаем начальные значения
+      // Устанавливаем начальные значения с правильной типизацией
       setTheme(WebApp.colorScheme as 'light' | 'dark');
-      setViewportHeight((WebApp as any).viewportHeight || window.innerHeight);
-      setIsExpanded((WebApp as any).isExpanded || false);
+      setViewportHeight(WebApp.viewportHeight || window.innerHeight);
+      setIsExpanded(WebApp.isExpanded || false);
       
       // Подписываемся на события
       WebApp.onEvent('themeChanged', handleThemeChanged);
@@ -70,15 +79,9 @@ export const useTelegramInit = () => {
       WebApp.onEvent('mainButtonClicked', handleMainButtonClicked);
       WebApp.onEvent('backButtonClicked', handleBackButtonClicked);
 
-      // Включаем подтверждение закрытия только если поддерживается
-      try {
-        if ((WebApp as any).enableClosingConfirmation) {
-          (WebApp as any).enableClosingConfirmation();
-          setIsClosingConfirmationEnabled(true);
-        }
-      } catch (error) {
-        logger.debug('Closing confirmation не поддерживается в этой версии', { error });
-      }
+      // Безопасно включаем подтверждение закрытия
+      const confirmationEnabled = safeEnableClosingConfirmation();
+      setIsClosingConfirmationEnabled(confirmationEnabled);
 
       // Обрабатываем deep links если есть
       if (WebApp.initDataUnsafe?.start_param) {
@@ -109,28 +112,14 @@ export const useTelegramInit = () => {
   }, [handleThemeChanged, handleViewportChanged, handleSettingsButtonClicked, handleMainButtonClicked, handleBackButtonClicked, logger]);
 
   const enableClosingConfirmation = useCallback(() => {
-    try {
-      if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).enableClosingConfirmation) {
-        (window.Telegram.WebApp as any).enableClosingConfirmation();
-        setIsClosingConfirmationEnabled(true);
-        logger.debug('Подтверждение закрытия включено', {});
-      }
-    } catch (error) {
-      logger.debug('Не удалось включить подтверждение закрытия', { error });
-    }
-  }, [logger]);
+    const success = safeEnableClosingConfirmation();
+    setIsClosingConfirmationEnabled(success);
+  }, []);
 
   const disableClosingConfirmation = useCallback(() => {
-    try {
-      if (window.Telegram?.WebApp && (window.Telegram.WebApp as any).disableClosingConfirmation) {
-        (window.Telegram.WebApp as any).disableClosingConfirmation();
-        setIsClosingConfirmationEnabled(false);
-        logger.debug('Подтверждение закрытия отключено', {});
-      }
-    } catch (error) {
-      logger.debug('Не удалось отключить подтверждение закрытия', { error });
-    }
-  }, [logger]);
+    const success = safeDisableClosingConfirmation();
+    setIsClosingConfirmationEnabled(!success);
+  }, []);
 
   const expand = useCallback(() => {
     if (window.Telegram?.WebApp?.expand) {

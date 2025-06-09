@@ -70,11 +70,19 @@ declare global {
         }, callback?: (buttonId?: string) => void): void;
         onEvent(eventType: string, eventHandler: () => void): void;
         offEvent(eventType: string, eventHandler: () => void): void;
-        // Дополнительные свойства, которые могут быть доступны
+        // Основные свойства WebApp API
         version?: string;
         platform?: string;
         viewportHeight?: number;
         isExpanded?: boolean;
+        // Экспериментальные методы для подтверждения закрытия
+        // Эти методы доступны в новых версиях Telegram WebApp API (v6.1+)
+        enableClosingConfirmation?(): void;
+        disableClosingConfirmation?(): void;
+        // Дополнительные методы для установки цвета заголовка
+        // Доступны в версии 6.1+
+        setHeaderColor?(color: string): void;
+        headerColor?: string;
       };
     };
   }

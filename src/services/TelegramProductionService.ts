@@ -1,6 +1,10 @@
-
 import LoggingService from './LoggingService';
 import TelegramValidationService from './TelegramValidationService';
+import { 
+  safeEnableClosingConfirmation, 
+  isHeaderColorSupported,
+  logWebAppCapabilities 
+} from '../utils/telegram/webAppSupport';
 
 class TelegramProductionService {
   private static instance: TelegramProductionService;
@@ -48,7 +52,6 @@ class TelegramProductionService {
   }
 
   private setupCSP() {
-    // Устанавливаем meta теги для безопасности
     const metaCSP = document.createElement('meta');
     metaCSP.httpEquiv = 'Content-Security-Policy';
     metaCSP.content = `
@@ -67,9 +70,8 @@ class TelegramProductionService {
     if (window.Telegram?.WebApp) {
       const webApp = window.Telegram.WebApp;
       
-      // Проверяем версию API
-      const version = webApp.version;
-      this.logger.info('Telegram WebApp version', { version });
+      // Логируем возможности WebApp API
+      logWebAppCapabilities();
       
       // Валидируем initData в production
       if (import.meta.env.PROD) {
@@ -88,24 +90,17 @@ class TelegramProductionService {
       webApp.ready();
       webApp.expand();
       
-      // Включаем подтверждение закрытия только если поддерживается
-      try {
-        const webAppWithExtensions = webApp as any;
-        if (webAppWithExtensions.enableClosingConfirmation) {
-          webAppWithExtensions.enableClosingConfirmation();
-        }
-      } catch (error) {
-        this.logger.debug('enableClosingConfirmation не поддерживается', { error });
-      }
+      // Безопасно включаем подтверждение закрытия
+      safeEnableClosingConfirmation();
       
-      // Устанавливаем заголовок (безопасная проверка)
-      try {
-        const webAppWithExtensions = webApp as any;
-        if (webAppWithExtensions.headerColor !== undefined && webAppWithExtensions.setHeaderColor) {
-          webAppWithExtensions.setHeaderColor('#6366f1');
+      // Безопасно устанавливаем заголовок если поддерживается
+      if (isHeaderColorSupported()) {
+        try {
+          webApp.setHeaderColor!('#6366f1');
+          this.logger.debug('Цвет заголовка установлен');
+        } catch (error) {
+          this.logger.debug('Ошибка установки цвета заголовка', { error });
         }
-      } catch (error) {
-        this.logger.debug('setHeaderColor не поддерживается', { error });
       }
       
       this.logger.info('Telegram WebApp initialized for production');
@@ -113,7 +108,6 @@ class TelegramProductionService {
   }
 
   private setupErrorReporting() {
-    // Глобальный обработчик ошибок
     window.addEventListener('error', (event) => {
       this.logger.error('Global error caught', {
         message: event.message,
@@ -123,7 +117,6 @@ class TelegramProductionService {
         error: event.error
       });
       
-      // Отправляем критические ошибки в Telegram
       if (window.Telegram?.WebApp && event.error) {
         try {
           window.Telegram.WebApp.showAlert(
@@ -135,7 +128,6 @@ class TelegramProductionService {
       }
     });
 
-    // Обработчик unhandled promise rejections
     window.addEventListener('unhandledrejection', (event) => {
       this.logger.error('Unhandled promise rejection', {
         reason: event.reason

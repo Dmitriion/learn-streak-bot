@@ -38,3 +38,15 @@ export {
   getTelegramWebApp,
   getTelegramInitData
 } from './telegram/safeGetters';
+
+// WebApp поддержка
+export {
+  isMethodSupported,
+  isPropertySupported,
+  getWebAppVersion,
+  isClosingConfirmationSupported,
+  isHeaderColorSupported,
+  safeEnableClosingConfirmation,
+  safeDisableClosingConfirmation,
+  logWebAppCapabilities
+} from './telegram/webAppSupport';
