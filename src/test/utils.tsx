@@ -5,8 +5,8 @@ import { TelegramProvider } from '../providers/TelegramProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { TestSetupOptions, RenderWithProvidersOptions } from './types';
 
-// Импортируем screen, waitFor, fireEvent отдельно
-import { screen, waitFor, fireEvent } from '@testing-library/react';
+// Импортируем screen, waitFor, fireEvent из @testing-library/dom
+import { screen, waitFor, fireEvent } from '@testing-library/dom';
 
 // Создаем новый QueryClient для каждого теста
 const createTestQueryClient = () => new QueryClient({
