@@ -27,11 +27,12 @@ const ServiceDiagnostics: React.FC = () => {
     try {
       // Проверка PaymentService
       const paymentService = PaymentService.getInstance();
+      const availablePlans = await paymentService.getAvailablePlans();
       results.push({
         name: 'Payment Service',
         status: 'ok',
         message: 'Инициализирован успешно',
-        details: { plans: paymentService.getAvailablePlans().length }
+        details: { plans: availablePlans.length }
       });
     } catch (error) {
       results.push({
