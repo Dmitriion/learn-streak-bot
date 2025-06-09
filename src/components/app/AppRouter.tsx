@@ -11,6 +11,7 @@ import PaymentSuccess from '../PaymentSuccess';
 import SettingsPage from '../settings/SettingsPage';
 import NotFound from '../../pages/NotFound';
 import AppLoader from './AppLoader';
+import { safeParseId } from '../../lib/routeUtils';
 
 interface AppRouterProps {
   currentRoute: string;
@@ -38,11 +39,13 @@ const AppRouter: React.FC<AppRouterProps> = ({ currentRoute, params, isLoading =
     
     case '/lesson':
     case 'lesson-detail':
-      return <LessonDetail lessonId={parseInt(params.id || '1')} />;
+      const lessonId = safeParseId(params.id, 1, 'lessonId');
+      return <LessonDetail lessonId={lessonId} />;
     
     case '/test':
     case 'test':
-      return <Test lessonId={parseInt(params.id || '1')} />;
+      const testLessonId = safeParseId(params.id, 1, 'testLessonId');
+      return <Test lessonId={testLessonId} />;
     
     case '/analytics':
     case 'analytics':

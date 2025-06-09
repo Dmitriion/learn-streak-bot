@@ -1,9 +1,12 @@
+
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Clock, Play } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { CheckCircle, Clock, Play, AlertCircle } from 'lucide-react';
 import { useTelegram } from '../providers/TelegramProvider';
 import { useTelegramNavigation } from '../hooks/useTelegramNavigation';
+import LoggingService from '../services/LoggingService';
 
 export interface LessonDetailProps {
   lessonId?: number;
@@ -12,6 +15,37 @@ export interface LessonDetailProps {
 const LessonDetail: React.FC<LessonDetailProps> = ({ lessonId = 1 }) => {
   const { showMainButton, hideMainButton, hapticFeedback } = useTelegram();
   const { navigate } = useTelegramNavigation();
+  const logger = LoggingService.getInstance();
+
+  // Проверяем валидность lessonId
+  useEffect(() => {
+    if (!lessonId || lessonId <= 0) {
+      logger.warn('LessonDetail: получен некорректный lessonId', { lessonId });
+    }
+  }, [lessonId, logger]);
+
+  // Если lessonId некорректен, показываем ошибку
+  if (!lessonId || lessonId <= 0) {
+    return (
+      <div className="p-4 space-y-6">
+        <Card className="border-0 shadow-lg">
+          <CardContent className="p-6 text-center space-y-4">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
+            <h2 className="text-xl font-semibold">Урок не найден</h2>
+            <p className="text-muted-foreground">
+              Запрошенный урок не существует или ID урока некорректен.
+            </p>
+            <Button 
+              onClick={() => navigate('lessons')}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            >
+              Вернуться к урокам
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const lesson = {
     id: lessonId,
