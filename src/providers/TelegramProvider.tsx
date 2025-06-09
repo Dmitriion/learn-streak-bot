@@ -11,7 +11,12 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
 
   const value: TelegramContextType = {
     ...authFeatures,
-    ...webAppFeatures
+    ...webAppFeatures,
+    // Добавляем недостающие обязательные поля
+    isInitialized: webAppFeatures.isInitialized || false,
+    themeParams: webAppFeatures.themeParams || {},
+    platform: webAppFeatures.platform || 'web',
+    version: webAppFeatures.version || '1.0'
   };
 
   return (

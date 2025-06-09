@@ -1,6 +1,6 @@
 
 // Перенаправление на унифицированные типы
-export { 
+export type { 
   TelegramUser,
   TelegramInitData,
   TelegramAuthState as AuthState,

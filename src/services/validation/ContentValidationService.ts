@@ -1,5 +1,5 @@
 
-import { TelegramUser, TelegramUserValidationResult } from '../auth/types';
+import { TelegramUser, TelegramUserValidationResult } from '../../types/TelegramTypes';
 import SecurityValidationService from './SecurityValidationService';
 import { isValidTelegramUser, isValidTelegramUserId, isValidTelegramUsername } from '../../utils/telegramTypeGuards';
 
@@ -18,28 +18,21 @@ class ContentValidationService {
     return ContentValidationService.instance;
   }
 
-  /**
-   * Валидация данных пользователя Telegram с использованием type guards
-   */
   validateUserData(telegramUser: TelegramUser): TelegramUserValidationResult {
     const warnings: string[] = [];
 
-    // Базовая проверка структуры с помощью type guard
     if (!isValidTelegramUser(telegramUser)) {
       return { isValid: false, error: 'Невалидная структура данных пользователя' };
     }
 
-    // Проверка ID пользователя
     if (!isValidTelegramUserId(telegramUser.id)) {
       warnings.push('Подозрительный ID пользователя');
     }
 
-    // Проверка username
     if (telegramUser.username && !isValidTelegramUsername(telegramUser.username)) {
       warnings.push('Невалидный формат username');
     }
 
-    // Проверка длины строк
     if (telegramUser.first_name && telegramUser.first_name.length > 256) {
       warnings.push('Слишком длинное имя');
     }
@@ -48,7 +41,6 @@ class ContentValidationService {
       warnings.push('Слишком длинная фамилия');
     }
 
-    // Проверка на XSS и подозрительное содержимое
     const textFields = [telegramUser.first_name, telegramUser.last_name, telegramUser.username];
     for (const field of textFields) {
       if (field && this.securityService.containsSuspiciousContent(field)) {
@@ -57,7 +49,6 @@ class ContentValidationService {
       }
     }
 
-    // Проверка языкового кода
     if (telegramUser.language_code && !this.isValidLanguageCode(telegramUser.language_code)) {
       warnings.push('Невалидный языковой код');
     }
@@ -68,11 +59,7 @@ class ContentValidationService {
     };
   }
 
-  /**
-   * Проверка корректности языкового кода
-   */
   private isValidLanguageCode(code: string): boolean {
-    // ISO 639-1 (2 символа) или ISO 639-1 + ISO 3166-1 (5 символов с дефисом)
     const langCodeRegex = /^[a-z]{2}(-[A-Z]{2})?$/;
     return langCodeRegex.test(code);
   }

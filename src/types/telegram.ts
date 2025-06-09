@@ -1,10 +1,8 @@
 
-// Перенаправление на унифицированные типы
-export { 
+// Re-export унифицированных типов для обратной совместимости
+export type { 
+  TelegramUser,
+  TelegramInitData,
   TelegramContextType,
   TelegramProviderProps
 } from './TelegramTypes';
-
-// Сохраняем обратную совместимость
-export type { TelegramContextType as TelegramContext };
-export type { TelegramProviderProps as TelegramProviderProperties };
