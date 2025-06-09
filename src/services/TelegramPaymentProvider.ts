@@ -3,6 +3,7 @@ import { PaymentData, PaymentResponse } from '../schemas/validation';
 import LoggingService from './LoggingService';
 import ErrorService from './ErrorService';
 import { N8NWebhookClient } from './automation/N8NWebhookClient';
+import { AutomationEvent } from '../types/automation';
 
 export interface TelegramInvoiceData {
   title: string;
@@ -52,11 +53,17 @@ class TelegramPaymentProvider {
 
       // Отправляем запрос на создание invoice через N8N
       const webhookUrl = this.getCreateInvoiceWebhookUrl();
-      const success = await this.webhookClient.sendRequest(webhookUrl, {
-        action: 'create_invoice',
-        invoice_data: invoiceData,
-        user_id: paymentData.user_id
-      });
+      const event: AutomationEvent = {
+        type: 'payment_invoice_create',
+        user_id: paymentData.user_id,
+        timestamp: new Date().toISOString(),
+        data: {
+          action: 'create_invoice',
+          invoice_data: invoiceData
+        }
+      };
+
+      const success = await this.webhookClient.sendEvent(webhookUrl, event);
 
       if (success) {
         this.logger.info('Telegram invoice создан успешно');
@@ -105,11 +112,17 @@ class TelegramPaymentProvider {
 
       // Отправляем данные на валидацию через N8N
       const webhookUrl = this.getValidatePaymentWebhookUrl();
-      const isValid = await this.webhookClient.sendRequest(webhookUrl, {
-        action: 'validate_payment',
-        payment_data: paymentData,
-        timestamp: Date.now()
-      });
+      const event: AutomationEvent = {
+        type: 'payment_validation',
+        user_id: payload.user_id,
+        timestamp: new Date().toISOString(),
+        data: {
+          action: 'validate_payment',
+          payment_data: paymentData
+        }
+      };
+
+      const isValid = await this.webhookClient.sendEvent(webhookUrl, event);
 
       this.logger.info('Результат валидации Telegram платежа', { isValid });
       return isValid;
@@ -129,10 +142,17 @@ class TelegramPaymentProvider {
     try {
       // Отправляем запрос на проверку статуса через N8N
       const webhookUrl = this.getCheckStatusWebhookUrl();
-      const result = await this.webhookClient.sendRequest(webhookUrl, {
-        action: 'check_payment_status',
-        payment_id: paymentId
-      });
+      const event: AutomationEvent = {
+        type: 'payment_status_check',
+        user_id: 'system',
+        timestamp: new Date().toISOString(),
+        data: {
+          action: 'check_payment_status',
+          payment_id: paymentId
+        }
+      };
+
+      const result = await this.webhookClient.sendEvent(webhookUrl, event);
 
       return {
         success: !!result,
