@@ -1,4 +1,3 @@
-
 import { SubscriptionPlan, PaymentData, PaymentResponse } from '../schemas/validation';
 import PlansProvider from './payment/PlansProvider';
 import PaymentValidator from './payment/PaymentValidator';
@@ -45,9 +44,18 @@ class PaymentService {
     return PaymentService.instance;
   }
 
-  getAvailablePlans(): SubscriptionPlan[] {
+  async getAvailablePlans(): Promise<SubscriptionPlan[]> {
     try {
-      return this.plansProvider.getAvailablePlans();
+      this.logger.info('Загрузка доступных планов');
+      
+      // В будущем здесь будет запрос к бэкенду
+      // Пока используем статичные планы с небольшой задержкой для имитации запроса
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const plans = this.plansProvider.getAvailablePlans();
+      
+      this.logger.info('Планы успешно загружены', { plansCount: plans.length });
+      return plans;
     } catch (error) {
       this.errorService.handleError({
         category: 'payment',
@@ -55,6 +63,8 @@ class PaymentService {
         originalError: error as Error,
         recoverable: true
       });
+      
+      // Возвращаем пустой массив при ошибке
       return [];
     }
   }

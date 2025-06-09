@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Crown, Star, Zap } from 'lucide-react';
+import { Check, Crown, Star, Zap, Loader2 } from 'lucide-react';
 import { SubscriptionPlan } from '../../schemas/validation';
 
 interface PlanCardProps {
@@ -23,6 +23,7 @@ const PlanCard: React.FC<PlanCardProps> = ({
 }) => {
   const getPlanIcon = (planId: string) => {
     switch (planId) {
+      case 'free':
       case 'basic':
         return <Star className="h-6 w-6 text-blue-600" />;
       case 'premium':
@@ -34,12 +35,27 @@ const PlanCard: React.FC<PlanCardProps> = ({
     }
   };
 
+  const getButtonText = () => {
+    if (isCurrentPlan) return 'Текущий план';
+    if (plan.price === 0) return 'Бесплатный план';
+    if (isSelected && isLoading) return 'Обработка...';
+    return 'Выбрать план';
+  };
+
+  const getButtonVariant = () => {
+    if (isCurrentPlan) return 'secondary';
+    if (isSelected) return 'default';
+    return 'outline';
+  };
+
   return (
     <Card
       className={`relative cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg ${
-        isSelected ? 'ring-2 ring-blue-500 shadow-lg' : ''
-      } ${isCurrentPlan ? 'border-green-500 bg-green-50' : ''}`}
-      onClick={() => onSelect(plan)}
+        isSelected ? 'ring-2 ring-primary shadow-lg' : ''
+      } ${isCurrentPlan ? 'border-green-500 bg-green-50' : ''} ${
+        isLoading && isSelected ? 'opacity-75' : ''
+      }`}
+      onClick={() => !isCurrentPlan && !isLoading && onSelect(plan)}
     >
       {plan.popular && (
         <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-purple-600">
@@ -78,15 +94,22 @@ const PlanCard: React.FC<PlanCardProps> = ({
           ))}
         </ul>
 
-        {!isCurrentPlan && (
-          <Button
-            variant={isSelected ? "default" : "outline"}
-            className="w-full"
-            disabled={isLoading}
-          >
-            {plan.price === 0 ? 'Текущий план' : 'Выбрать план'}
-          </Button>
-        )}
+        <Button
+          variant={getButtonVariant() as any}
+          className="w-full"
+          disabled={isCurrentPlan || (isLoading && isSelected)}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isCurrentPlan && !isLoading) {
+              onSelect(plan);
+            }
+          }}
+        >
+          {isLoading && isSelected && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
+          {getButtonText()}
+        </Button>
       </CardContent>
     </Card>
   );
