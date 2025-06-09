@@ -1,98 +1,101 @@
 
 import LoggingService from '../LoggingService';
-import { PerformanceReporter } from './PerformanceReporter';
-import { WebVitalsMetrics, MetricThresholds } from './types';
+import { MetricsData, PerformanceMetrics } from '../../types/metrics';
 
-export class MetricsCollector {
+class MetricsCollector {
+  private static instance: MetricsCollector;
   private logger: LoggingService;
-  private reporter: PerformanceReporter;
-  private metrics: Map<string, number> = new Map();
-
-  private readonly THRESHOLDS: MetricThresholds = {
-    'LCP': 2500,  // Более 2.5 секунд - плохо
-    'FID': 100,   // Более 100мс - плохо
-    'CLS': 0.1,   // Более 0.1 - плохо
-    'TTFB': 800,  // Более 800мс - плохо
-    'pageLoadTime': 3000 // Более 3 секунд - плохо
-  };
+  private metrics: MetricsData | null = null;
+  private startTime: number = Date.now();
 
   constructor() {
     this.logger = LoggingService.getInstance();
-    this.reporter = new PerformanceReporter();
   }
 
-  recordMetric(name: string, value: number) {
-    this.metrics.set(name, value);
-    this.logger.debug(`Performance metric recorded: ${name}`, { value });
-
-    // Отправляем критические метрики сразу
-    if (this.isCriticalMetric(name, value)) {
-      this.reporter.sendMetrics([{ name, value, timestamp: Date.now() }]);
+  static getInstance(): MetricsCollector {
+    if (!MetricsCollector.instance) {
+      MetricsCollector.instance = new MetricsCollector();
     }
+    return MetricsCollector.instance;
   }
 
-  private isCriticalMetric(name: string, value: number): boolean {
-    const threshold = this.THRESHOLDS[name];
-    return threshold !== undefined && value > threshold;
-  }
-
-  startTiming(label: string): () => void {
-    const startTime = performance.now();
-    this.logger.debug(`Timing started: ${label}`);
-
-    return () => {
-      const endTime = performance.now();
-      const duration = endTime - startTime;
-      this.recordMetric(label, duration);
-      this.logger.debug(`Timing ended: ${label}`, { duration });
+  initializeMetrics(userId: string, sessionId: string) {
+    const performanceMetrics: PerformanceMetrics = {
+      loadTime: Date.now() - this.startTime,
+      renderTime: 0,
+      interactionTime: 0,
+      memoryUsage: this.getMemoryUsage(),
+      bundleSize: this.getBundleSize(),
+      errorCount: 0
     };
+
+    this.metrics = {
+      timestamp: new Date().toISOString(),
+      userId,
+      sessionId,
+      performance: performanceMetrics,
+      errors: []
+    };
+
+    this.logger.info('Метрики инициализированы', { userId, sessionId });
   }
 
-  measureComponentRender(componentName: string, renderFunction: () => void) {
-    const startTime = performance.now();
-    renderFunction();
-    const endTime = performance.now();
-    
-    this.recordMetric(`${componentName}_render_time`, endTime - startTime);
-  }
-
-  async measureAPICall<T>(label: string, apiCall: () => Promise<T>): Promise<T> {
-    const startTime = performance.now();
-    
-    try {
-      const result = await apiCall();
-      const endTime = performance.now();
-      this.recordMetric(`api_${label}`, endTime - startTime);
-      return result;
-    } catch (error) {
-      const endTime = performance.now();
-      this.recordMetric(`api_${label}_error`, endTime - startTime);
-      throw error;
+  recordRenderTime(duration: number) {
+    if (this.metrics) {
+      this.metrics.performance.renderTime = duration;
     }
   }
 
-  getMetrics(): WebVitalsMetrics & { [key: string]: number } {
-    const metricsObj: any = {};
-    this.metrics.forEach((value, key) => {
-      metricsObj[key] = value;
-    });
-    return metricsObj;
+  recordInteractionTime(duration: number) {
+    if (this.metrics) {
+      this.metrics.performance.interactionTime = duration;
+    }
   }
 
-  flushMetrics() {
-    const allMetrics = Array.from(this.metrics.entries()).map(([name, value]) => ({
-      name,
-      value,
-      timestamp: Date.now()
-    }));
+  recordError(error: Error | string) {
+    if (!this.metrics) return;
 
-    if (allMetrics.length > 0) {
-      this.reporter.sendMetrics(allMetrics);
-      this.logger.info('Метрики производительности отправлены', { count: allMetrics.length });
+    const errorRecord = {
+      message: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    };
+
+    this.metrics.errors.push(errorRecord);
+    this.metrics.performance.errorCount++;
+  }
+
+  private getMemoryUsage(): number {
+    if ('memory' in performance) {
+      const memoryInfo = (performance as any).memory;
+      return memoryInfo?.usedJSHeapSize || 0;
     }
+    return 0;
+  }
+
+  private getBundleSize(): number {
+    // Примерная оценка размера bundle
+    if ('getEntriesByType' in performance) {
+      const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+      return resources
+        .filter(resource => resource.name.includes('.js'))
+        .reduce((total, resource) => total + (resource.transferSize || 0), 0);
+    }
+    return 0;
+  }
+
+  getMetrics(): MetricsData | null {
+    return this.metrics ? { ...this.metrics } : null;
+  }
+
+  exportMetrics(): string {
+    return JSON.stringify(this.metrics, null, 2);
   }
 
   clearMetrics() {
-    this.metrics.clear();
+    this.metrics = null;
+    this.logger.info('Метрики очищены');
   }
 }
+
+export default MetricsCollector;

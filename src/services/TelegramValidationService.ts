@@ -1,3 +1,4 @@
+
 import LoggingService from './LoggingService';
 import SecurityValidationService from './validation/SecurityValidationService';
 import ContentValidationService from './validation/ContentValidationService';
@@ -8,6 +9,21 @@ import {
   UserValidationResult, 
   ValidationResult 
 } from './auth/types';
+import { 
+  isTelegramWebAppAvailable, 
+  hasTelegramUser, 
+  isValidTelegramUser 
+} from '../utils/telegramTypeGuards';
+
+interface ParsedInitData {
+  user?: TelegramUser;
+  auth_date?: string;
+  hash?: string;
+  start_param?: string;
+  chat_type?: string;
+  chat_instance?: string;
+  [key: string]: string | TelegramUser | undefined;
+}
 
 class TelegramValidationService {
   private static instance: TelegramValidationService;
@@ -29,7 +45,7 @@ class TelegramValidationService {
   }
 
   private isDevelopmentMode(): boolean {
-    const appEnv = (globalThis as any).__APP_ENV__ || 'development';
+    const appEnv = (globalThis as { __APP_ENV__?: string }).__APP_ENV__ || 'development';
     return appEnv === 'development' || 
            window.location.hostname === 'localhost' || 
            window.location.hostname.includes('lovableproject.com') ||
@@ -37,7 +53,7 @@ class TelegramValidationService {
   }
 
   private isTelegramEnvironment(): boolean {
-    return !!(window.Telegram?.WebApp);
+    return isTelegramWebAppAvailable();
   }
 
   /**
@@ -61,12 +77,17 @@ class TelegramValidationService {
 
       // Парсим URL-encoded данные
       const urlParams = new URLSearchParams(initData);
-      const data: any = {};
+      const data: ParsedInitData = {};
       
       for (const [key, value] of urlParams.entries()) {
         if (key === 'user') {
           try {
-            data[key] = JSON.parse(value);
+            const parsedUser = JSON.parse(value);
+            if (isValidTelegramUser(parsedUser)) {
+              data[key] = parsedUser;
+            } else {
+              return { isValid: false, error: 'Невалидные данные пользователя' };
+            }
           } catch {
             return { isValid: false, error: 'Невалидные данные пользователя' };
           }
@@ -76,7 +97,7 @@ class TelegramValidationService {
       }
 
       // Базовые проверки
-      const authDate = parseInt(data.auth_date);
+      const authDate = data.auth_date ? parseInt(data.auth_date) : NaN;
       if (isNaN(authDate)) {
         return { isValid: false, error: 'Невалидная auth_date' };
       }
@@ -127,7 +148,7 @@ class TelegramValidationService {
       }
 
       // Проверяем наличие пользователя
-      if (!webApp.initDataUnsafe?.user) {
+      if (!hasTelegramUser()) {
         if (this.isDevelopmentMode()) {
           this.logger.warn('Telegram WebApp: пользователь не найден, используем mock данные');
           return { isValid: true, parsedData: this.createMockInitData() };
@@ -135,9 +156,14 @@ class TelegramValidationService {
         return { isValid: false, error: 'Данные пользователя недоступны' };
       }
 
+      const user = webApp.initDataUnsafe.user;
+      if (!isValidTelegramUser(user)) {
+        return { isValid: false, error: 'Невалидные данные пользователя' };
+      }
+
       // Создаем parsedData из Telegram WebApp
       const parsedData: TelegramInitData = {
-        user: webApp.initDataUnsafe.user,
+        user,
         auth_date: Math.floor(Date.now() / 1000), // Текущее время
         hash: 'telegram_webapp_validated',
         start_param: webApp.initDataUnsafe.start_param,
