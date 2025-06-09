@@ -18,6 +18,7 @@ interface MockUserData {
   last_activity: string;
   score: number;
   subscription_status: 'free' | 'premium' | 'vip';
+  subscription_expires?: string;
   registration_date: string;
 }
 

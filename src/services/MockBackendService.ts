@@ -153,18 +153,25 @@ class MockBackendService {
 
       const parsedData: MockUserData = JSON.parse(userData);
       parsedData.subscription_status = subscriptionData.subscription_status || 'free';
-      parsedData.subscription_expires = subscriptionData.subscription_expires;
+      if (subscriptionData.subscription_expires) {
+        parsedData.subscription_expires = subscriptionData.subscription_expires;
+      }
       
       localStorage.setItem(
         this.getStorageKey(`user_${userId}`),
         JSON.stringify(parsedData)
       );
 
-      // Обновляем также в MockDataProvider
-      this.mockDataProvider.updateMockUser(userId, {
-        subscription_status: parsedData.subscription_status,
-        subscription_expires: parsedData.subscription_expires
-      });
+      // Обновляем также в MockDataProvider - убираем subscription_expires если его нет
+      const updateData: any = {
+        subscription_status: parsedData.subscription_status
+      };
+      
+      if (parsedData.subscription_expires) {
+        updateData.subscription_expires = parsedData.subscription_expires;
+      }
+
+      this.mockDataProvider.updateMockUser(userId, updateData);
 
       this.logger.info('MockBackend: Подписка обновлена', { userId, subscriptionData });
 
