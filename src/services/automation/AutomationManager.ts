@@ -1,4 +1,3 @@
-
 import N8NIntegration from './N8NIntegration';
 import { N8NWebhookEvent } from '../../types/automation';
 import { TelegramUser } from '../auth/types';
@@ -132,6 +131,37 @@ class AutomationManager {
 
   toggleTrigger(triggerId: string, enabled: boolean) {
     this.n8nIntegration.toggleTrigger(triggerId, enabled);
+  }
+
+  // Добавляю недостающие методы для диагностики
+  async testConnection(): Promise<boolean> {
+    try {
+      return await this.n8nIntegration.testConnection();
+    } catch (error) {
+      this.logger.error('Ошибка тестирования подключения N8N', { error });
+      return false;
+    }
+  }
+
+  getHealthStatus(): { healthy: boolean; details: any } {
+    try {
+      const isConfigured = this.n8nIntegration.isConfigured();
+      const enabledTriggersCount = this.getEnabledTriggers().length;
+      
+      return {
+        healthy: isConfigured && enabledTriggersCount > 0,
+        details: {
+          configured: isConfigured,
+          enabledTriggers: enabledTriggersCount,
+          webhookUrl: import.meta.env.VITE_N8N_WEBHOOK_URL || 'не задан'
+        }
+      };
+    } catch (error) {
+      return {
+        healthy: false,
+        details: { error: error.message }
+      };
+    }
   }
 }
 

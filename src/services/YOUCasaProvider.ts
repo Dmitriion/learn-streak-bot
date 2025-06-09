@@ -1,4 +1,3 @@
-
 import { PaymentData, PaymentResponse } from '../schemas/validation';
 import LoggingService from './LoggingService';
 import ErrorService from './ErrorService';
@@ -53,7 +52,7 @@ class YOUCasaProvider {
           currency: paymentData.currency
         },
         confirmation: {
-          type: 'redirect',
+          type: 'redirect';
           return_url: paymentData.return_url || `${window.location.origin}/payment-success`
         },
         description: `Подписка на обучающую платформу - План ${paymentData.plan_id}`,
@@ -124,16 +123,11 @@ class YOUCasaProvider {
         status: result.status 
       });
 
+      // Убираю поле data из возвращаемого объекта, чтобы соответствовать типу PaymentResponse
       return {
         success: result.status === 'succeeded',
         payment_id: result.id,
-        message: `Статус платежа: ${result.status}`,
-        data: {
-          status: result.status,
-          amount: result.amount,
-          created_at: result.created_at,
-          captured_at: result.captured_at || null
-        }
+        message: `Статус платежа: ${result.status}`
       };
     } catch (error) {
       this.errorService.handlePaymentError(
