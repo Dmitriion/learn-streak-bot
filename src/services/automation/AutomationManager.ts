@@ -1,4 +1,3 @@
-
 import LoggingService from '../LoggingService';
 import N8NIntegration from './N8NIntegration';
 import EnvironmentManager from '../environment/EnvironmentManager';
@@ -146,14 +145,19 @@ class AutomationManager {
     return result.success;
   }
 
-  // Методы для автоматизации образовательных событий
+  // ИСПРАВЛЕНО: Методы для автоматизации образовательных событий с правильными типами
   async onUserRegistered(telegramUser: TelegramUser, fullName: string): Promise<void> {
     await this.triggerEvent({
       type: 'user_registered',
       user_id: telegramUser.id.toString(),
       timestamp: new Date().toISOString(),
       data: { fullName },
-      telegram_data: telegramUser
+      telegram_data: {
+        user_id: telegramUser.id,  // ИСПРАВЛЕНО: добавлено поле user_id
+        username: telegramUser.username,
+        first_name: telegramUser.first_name,
+        last_name: telegramUser.last_name
+      }
     });
   }
 

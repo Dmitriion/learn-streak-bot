@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -49,15 +48,15 @@ const ProductionHealthCheck: React.FC = () => {
         critical: false
       });
 
-      // 3. Automation Manager  
+      // 3. Automation Manager - ИСПРАВЛЕНО: добавлен await
       const automationManager = AutomationManager.getInstance();
-      const automationHealth = automationManager.getHealthStatus();
+      const automationHealth = await automationManager.getHealthStatus();
       const connectionTest = await automationManager.testConnection();
       
       healthChecks.push({
         name: 'N8N Automation',
-        status: automationHealth.healthy && connectionTest ? 'pass' : 'warning',
-        message: automationHealth.healthy && connectionTest ? 
+        status: automationHealth.isHealthy && connectionTest ? 'pass' : 'warning',
+        message: automationHealth.isHealthy && connectionTest ? 
           'Подключен и работает' : 
           'Не настроен или недоступен',
         critical: false
