@@ -17,8 +17,8 @@ export class RegistrationConfigManager {
   }
 
   private initializeConfig() {
-    // Проверяем environment переменные
-    const envWebhookUrl = (globalThis as any).__N8N_WEBHOOK_URL__ || '';
+    // Проверяем environment переменные через import.meta.env
+    const envWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || '';
     if (envWebhookUrl) {
       this.setWebhookUrl(envWebhookUrl);
     }

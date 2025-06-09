@@ -34,7 +34,7 @@ class TelegramProductionService {
   }
 
   private registerServiceWorker() {
-    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+    if ('serviceWorker' in navigator && import.meta.env.PROD) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
           .then(registration => {
@@ -53,10 +53,10 @@ class TelegramProductionService {
     metaCSP.httpEquiv = 'Content-Security-Policy';
     metaCSP.content = `
       default-src 'self';
-      script-src 'self' 'unsafe-inline' https://telegram.org;
+      script-src 'self' 'unsafe-inline' https://telegram.org https://*.telegram.org;
       style-src 'self' 'unsafe-inline';
       img-src 'self' data: https:;
-      connect-src 'self' https://api.telegram.org;
+      connect-src 'self' https://api.telegram.org https://*.telegram.org;
       frame-ancestors 'none';
     `.replace(/\s+/g, ' ').trim();
     
@@ -72,7 +72,7 @@ class TelegramProductionService {
       this.logger.info('Telegram WebApp version', { version });
       
       // Валидируем initData в production
-      if (process.env.NODE_ENV === 'production') {
+      if (import.meta.env.PROD) {
         const initDataValidation = this.validationService.validateInitData(
           webApp.initData || ''
         );
@@ -88,7 +88,7 @@ class TelegramProductionService {
       webApp.ready();
       webApp.expand();
       
-      // Включаем подтверждение закрытия в production (безопасная проверка)
+      // Включаем подтверждение закрытия только если поддерживается
       try {
         const webAppWithExtensions = webApp as any;
         if (webAppWithExtensions.enableClosingConfirmation) {
@@ -150,8 +150,8 @@ class TelegramProductionService {
       isTelegramEnvironment: !!window.Telegram?.WebApp,
       webAppVersion: window.Telegram?.WebApp?.version || 'unknown',
       platform: window.Telegram?.WebApp?.platform || 'web',
-      isDevelopment: process.env.NODE_ENV === 'development',
-      isProduction: process.env.NODE_ENV === 'production'
+      isDevelopment: import.meta.env.DEV,
+      isProduction: import.meta.env.PROD
     };
   }
 

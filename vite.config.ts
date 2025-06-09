@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   define: {
-    // Безопасно передаем environment variables
+    // Безопасно передаем environment variables для Vite
     __TELEGRAM_BOT_TOKEN__: JSON.stringify(process.env.VITE_TELEGRAM_BOT_TOKEN || 'development_token'),
     __N8N_WEBHOOK_URL__: JSON.stringify(process.env.VITE_N8N_WEBHOOK_URL || ''),
     __APP_ENV__: JSON.stringify(mode),
@@ -46,5 +46,10 @@ export default defineConfig(({ mode }) => ({
   },
   optimizeDeps: {
     include: ['@twa-dev/sdk', 'recharts']
+  },
+  // Добавляем поддержку SPA роутинга
+  preview: {
+    host: true,
+    port: 4173,
   }
 }));

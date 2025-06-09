@@ -72,8 +72,10 @@ class LoggingService {
     this.addLog(entry);
     console.error(`[ERROR] ${message}`, data);
     
-    // Критические ошибки отправляем на сервер немедленно
-    this.sendLogToServer(entry);
+    // В production только логируем в консоль
+    if (import.meta.env.PROD) {
+      this.logToConsole(entry);
+    }
   }
 
   private addLog(entry: LogEntry) {
@@ -85,21 +87,8 @@ class LoggingService {
     }
   }
 
-  private async sendLogToServer(entry: LogEntry) {
-    try {
-      // В production здесь должен быть реальный endpoint для логов
-      if (process.env.NODE_ENV === 'production') {
-        await fetch('/api/logs', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(entry),
-        });
-      }
-    } catch (error) {
-      console.error('Ошибка отправки лога на сервер:', error);
-    }
+  private logToConsole(entry: LogEntry) {
+    console.error(`[PRODUCTION ERROR] ${entry.message}`, entry.data);
   }
 
   getLogs(): LogEntry[] {
@@ -110,23 +99,18 @@ class LoggingService {
     this.logs = [];
   }
 
-  // Отправка всех накопленных логов на сервер
+  // В production только локальное логирование
   async flushLogs() {
     if (this.logs.length === 0) return;
 
     try {
-      if (process.env.NODE_ENV === 'production') {
-        await fetch('/api/logs/batch', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(this.logs),
-        });
+      // В production только очищаем локальные логи
+      if (import.meta.env.PROD) {
+        console.info(`Очистка ${this.logs.length} локальных логов`);
         this.clearLogs();
       }
     } catch (error) {
-      console.error('Ошибка отправки логов на сервер:', error);
+      console.error('Ошибка очистки логов:', error);
     }
   }
 }
