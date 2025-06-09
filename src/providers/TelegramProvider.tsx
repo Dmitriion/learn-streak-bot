@@ -15,9 +15,9 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
     ...webAppFeatures,
     // Исправляем недостающие поля из WebApp
     isInitialized: webAppFeatures.isReady || false,
-    themeParams: webAppFeatures.themeParams || {},
-    platform: webAppFeatures.platform || 'web',
-    version: webAppFeatures.version || '1.0',
+    themeParams: webAppFeatures.theme ? { bg_color: webAppFeatures.theme } : {},
+    platform: 'web',
+    version: '1.0',
     // Корректируем openInvoice для совместимости типов
     openInvoice: (url: string, callback?: (status: TelegramPaymentStatus) => void) => {
       if (webAppFeatures.openInvoice) {

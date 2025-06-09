@@ -1,8 +1,8 @@
-
-import { TelegramUser, TelegramAuthState } from '../types/TelegramTypes';
+import LoggingService from './LoggingService';
 import { AuthValidator } from './auth/AuthValidator';
 import { UserAuthenticator } from './auth/UserAuthenticator';
-import { UserRegistrationManager } from './auth/UserRegistrationManager';
+import UserRegistrationManager from './auth/UserRegistrationManager';
+import { TelegramUser, TelegramAuthState } from '../types/TelegramTypes';
 
 class AuthService {
   private static instance: AuthService;
