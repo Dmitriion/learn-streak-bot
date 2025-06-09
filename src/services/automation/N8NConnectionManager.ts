@@ -1,15 +1,12 @@
 
-import LoggingService from '../LoggingService';
 import { N8NConfig } from './N8NConfig';
 import { N8NWebhookClient } from './N8NWebhookClient';
 
 export class N8NConnectionManager {
-  private logger: LoggingService;
   private config: N8NConfig;
   private webhookClient: N8NWebhookClient;
 
   constructor(config: N8NConfig, webhookClient: N8NWebhookClient) {
-    this.logger = LoggingService.getInstance();
     this.config = config;
     this.webhookClient = webhookClient;
   }
@@ -60,6 +57,7 @@ export class N8NConnectionManager {
         }
       } catch (error) {
         errors.push('Ошибка при тестировании соединения');
+        console.error('[N8NConnectionManager] Ошибка тестирования соединения:', error);
       }
     }
 
