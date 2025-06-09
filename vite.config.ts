@@ -26,8 +26,8 @@ export default defineConfig(({ mode }) => ({
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   build: {
-    // Оптимизация для Telegram Mini App
-    target: 'es2015',
+    // Оптимизация для Telegram Mini App - приведено к соответствию с tsconfig.app.json
+    target: 'es2020',
     minify: 'esbuild',
     sourcemap: mode === 'development',
     rollupOptions: {
