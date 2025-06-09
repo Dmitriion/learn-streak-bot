@@ -56,6 +56,3 @@ export type {
   TelegramContextType,
   TelegramProviderProps
 } from './telegram/Context';
-
-// Экспортируем также для обратной совместимости
-export type { TelegramAuthState as AuthState };

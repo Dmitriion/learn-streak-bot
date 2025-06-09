@@ -38,7 +38,7 @@ class UserRegistrationManager {
     };
 
     try {
-      // Сохраняем в mock backend
+      // Сохраняем в mock backend с правильной сигнатурой
       await this.mockBackend.registerUser(registrationData);
       
       // Отправляем событие автоматизации
