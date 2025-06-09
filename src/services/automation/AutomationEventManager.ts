@@ -1,17 +1,20 @@
-
 import LoggingService from '../LoggingService';
+import ErrorService from '../ErrorService';
 import N8NIntegration from './N8NIntegration';
 import { AutomationConfig } from './AutomationConfig';
 import { AutomationEvent } from '../../types/automation';
 import { TelegramUser } from '../auth/types';
+import { toast } from '@/hooks/use-toast';
 
 export class AutomationEventManager {
   private logger: LoggingService;
+  private errorService: ErrorService;
   private n8nIntegration: N8NIntegration;
   private config: AutomationConfig;
 
   constructor(config: AutomationConfig, n8nIntegration: N8NIntegration) {
     this.logger = LoggingService.getInstance();
+    this.errorService = ErrorService.getInstance();
     this.config = config;
     this.n8nIntegration = n8nIntegration;
   }
@@ -24,18 +27,60 @@ export class AutomationEventManager {
 
     if (!this.config.hasWebhookUrl()) {
       this.logger.warn('N8N webhook URL не настроен', { event: event.type });
+      this.showConfigurationWarning();
       return;
     }
 
     try {
       this.logger.info('Отправка события в N8N', { event: event.type, userId: event.user_id });
-      await this.n8nIntegration.sendEvent(event);
+      const success = await this.n8nIntegration.sendEvent(event);
+      
+      if (success) {
+        this.showSuccessNotification(event.type);
+      } else {
+        this.showErrorNotification(event.type, 'Ошибка отправки в N8N');
+      }
     } catch (error) {
       this.logger.error('Ошибка отправки события в N8N', { 
         error: error instanceof Error ? error.message : 'Unknown error',
         event: event.type 
       });
+      
+      this.errorService.handleNetworkError(error as Error, {
+        eventType: event.type,
+        userId: event.user_id
+      });
+      
+      this.showErrorNotification(event.type, 'Сетевая ошибка');
     }
+  }
+
+  private showSuccessNotification(eventType: string) {
+    if (import.meta.env.DEV) {
+      toast({
+        title: "Автоматизация",
+        description: `Событие "${eventType}" успешно отправлено в N8N`,
+        duration: 3000,
+      });
+    }
+  }
+
+  private showErrorNotification(eventType: string, error: string) {
+    toast({
+      title: "Ошибка автоматизации",
+      description: `Не удалось отправить событие "${eventType}": ${error}`,
+      variant: "destructive",
+      duration: 5000,
+    });
+  }
+
+  private showConfigurationWarning() {
+    toast({
+      title: "Настройка автоматизации",
+      description: "N8N webhook URL не настроен. Перейдите в настройки для конфигурации.",
+      variant: "destructive",
+      duration: 5000,
+    });
   }
 
   async onUserRegistered(telegramUser: TelegramUser, fullName: string): Promise<void> {
