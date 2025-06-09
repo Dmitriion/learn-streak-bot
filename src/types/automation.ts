@@ -12,6 +12,20 @@ export interface N8NWebhookEvent {
   };
 }
 
+// Универсальный тип для автоматизации
+export interface AutomationEvent {
+  type: string;
+  user_id: string;
+  timestamp: string;
+  data: Record<string, any>;
+  telegram_data?: {
+    user_id: number;
+    username?: string;
+    first_name: string;
+    last_name?: string;
+  };
+}
+
 export interface AutomationTrigger {
   id: string;
   name: string;
