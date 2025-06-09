@@ -4,64 +4,64 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { BookOpen, CheckCircle, Clock, Lock } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { BookOpen, CheckCircle, Clock, Lock, AlertCircle } from 'lucide-react';
 import { useTelegram } from '../providers/TelegramProvider';
 import { useTelegramNavigation } from '../hooks/useTelegramNavigation';
+import { useLessons, useUserProgress } from '../hooks/useLessons';
+
+const LessonSkeleton = () => (
+  <Card className="border-0 shadow-lg">
+    <CardHeader className="pb-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-4 w-4 rounded-full" />
+          <Skeleton className="h-3 w-12" />
+        </div>
+        <Skeleton className="h-5 w-12 rounded-full" />
+      </div>
+      <Skeleton className="h-5 w-3/4" />
+    </CardHeader>
+    <CardContent className="space-y-3 pt-0">
+      <Skeleton className="h-4 w-full" />
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-7 w-16 rounded" />
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const ErrorState = ({ error, onRetry }: { error: Error; onRetry: () => void }) => (
+  <Card className="border-red-200 bg-red-50">
+    <CardContent className="p-6 text-center space-y-4">
+      <AlertCircle className="h-12 w-12 text-red-600 mx-auto" />
+      <div>
+        <h3 className="text-lg font-semibold text-red-800">Ошибка загрузки</h3>
+        <p className="text-sm text-red-600 mt-1">{error.message}</p>
+      </div>
+      <Button onClick={onRetry} variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
+        Попробовать снова
+      </Button>
+    </CardContent>
+  </Card>
+);
 
 const Lessons = () => {
   const { hideMainButton, hapticFeedback } = useTelegram();
   const { navigate } = useTelegramNavigation();
-
-  const lessons = [
-    {
-      id: 1,
-      title: "Введение в коучинг",
-      description: "Основные принципы и философия коучинга",
-      duration: 15,
-      completed: true,
-      score: 92,
-      unlocked: true
-    },
-    {
-      id: 2,
-      title: "Активное слушание",
-      description: "Техники эффективного слушания клиента",
-      duration: 20,
-      completed: true,
-      score: 88,
-      unlocked: true
-    },
-    {
-      id: 3,
-      title: "Постановка вопросов",
-      description: "Искусство задавать правильные вопросы",
-      duration: 18,
-      completed: true,
-      score: 95,
-      unlocked: true
-    },
-    {
-      id: 4,
-      title: "Работа с целями",
-      description: "Методы постановки и достижения целей",
-      duration: 25,
-      completed: false,
-      score: null,
-      unlocked: true
-    },
-    {
-      id: 5,
-      title: "Работа с убеждениями",
-      description: "Выявление и трансформация ограничивающих убеждений",
-      duration: 30,
-      completed: false,
-      score: null,
-      unlocked: false
-    }
-  ];
-
-  const completedLessons = lessons.filter(lesson => lesson.completed).length;
-  const progressPercentage = (completedLessons / lessons.length) * 100;
+  
+  const { 
+    data: lessons, 
+    isLoading: lessonsLoading, 
+    error: lessonsError, 
+    refetch: refetchLessons 
+  } = useLessons();
+  
+  const { 
+    data: userProgress, 
+    isLoading: progressLoading 
+  } = useUserProgress();
 
   useEffect(() => {
     hideMainButton();
@@ -74,17 +74,60 @@ const Lessons = () => {
     }
   };
 
+  // Показываем ошибку если есть проблемы с загрузкой
+  if (lessonsError) {
+    return (
+      <div className="p-4">
+        <ErrorState 
+          error={lessonsError as Error} 
+          onRetry={() => refetchLessons()} 
+        />
+      </div>
+    );
+  }
+
+  // Показываем скелеты во время загрузки
+  if (lessonsLoading || progressLoading) {
+    return (
+      <div className="p-4 space-y-4">
+        {/* Header skeleton */}
+        <div className="text-center space-y-3">
+          <Skeleton className="h-8 w-48 mx-auto" />
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+            <Skeleton className="h-2 w-full" />
+          </div>
+        </div>
+
+        {/* Lessons skeletons */}
+        <div className="space-y-3">
+          {[...Array(5)].map((_, index) => (
+            <LessonSkeleton key={index} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const progressPercentage = userProgress ? 
+    (userProgress.completedLessons / userProgress.totalLessons) * 100 : 0;
+
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="text-center space-y-3">
         <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Основы коучинга
+          Основы менторинга
         </h1>
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Прогресс курса</span>
-            <span>{completedLessons}/{lessons.length} уроков</span>
+            <span>
+              {userProgress?.completedLessons || 0}/{userProgress?.totalLessons || 0} уроков
+            </span>
           </div>
           <Progress value={progressPercentage} className="h-2" />
         </div>
@@ -92,7 +135,7 @@ const Lessons = () => {
 
       {/* Lessons Grid */}
       <div className="space-y-3">
-        {lessons.map((lesson) => (
+        {lessons?.map((lesson) => (
           <Card
             key={lesson.id}
             className={`border-0 shadow-lg transition-all duration-300 ${
