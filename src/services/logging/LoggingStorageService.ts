@@ -1,4 +1,3 @@
-
 import { LogEntry } from '../LoggingService';
 
 interface StoredLogEntry extends LogEntry {
@@ -71,12 +70,22 @@ class LoggingStorageService {
       const transaction = this.db!.transaction(['logs'], 'readonly');
       const store = transaction.objectStore('logs');
       const index = store.index('synced');
-      const request = index.getAll(false);
+      
+      // Используем openCursor вместо getAll для фильтрации по boolean значению
+      const request = index.openCursor(IDBKeyRange.only(false));
+      const logs: LogEntry[] = [];
 
-      request.onsuccess = () => {
-        const logs: LogEntry[] = request.result.map(({ id, synced, ...log }) => log);
-        resolve(logs);
+      request.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest).result;
+        if (cursor) {
+          const { id, synced, ...log } = cursor.value as StoredLogEntry;
+          logs.push(log);
+          cursor.continue();
+        } else {
+          resolve(logs);
+        }
       };
+      
       request.onerror = () => reject(request.error);
     });
   }
