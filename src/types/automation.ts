@@ -1,6 +1,6 @@
 
 export interface N8NWebhookEvent {
-  event_type: 'user_registered' | 'lesson_completed' | 'test_passed' | 'payment_success' | 'course_completed' | 'user_inactive';
+  event_type: 'user_registered' | 'lesson_completed' | 'test_passed' | 'payment_success' | 'course_completed' | 'user_inactive' | 'logs_batch';
   user_id: string;
   timestamp: string;
   data: Record<string, any>;

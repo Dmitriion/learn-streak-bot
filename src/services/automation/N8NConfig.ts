@@ -66,6 +66,14 @@ export class N8NConfig {
         webhook_url: '/webhook/user/inactive',
         enabled: true,
         description: 'Отправляется при длительной неактивности'
+      },
+      {
+        id: 'logs_batch',
+        name: 'Пакет логов',
+        event_type: 'logs_batch',
+        webhook_url: '/webhook/logs/batch',
+        enabled: true,
+        description: 'Отправляется для централизованного логирования'
       }
     ];
   }
