@@ -20,3 +20,11 @@ export interface SubscriptionUpdateData {
   subscription_status?: 'free' | 'premium' | 'vip';
   subscription_expires?: string;
 }
+
+// Re-export types from MockDataTypes for compatibility
+export type {
+  MockDataSet,
+  MockLessonData,
+  MockQuestionData,
+  MockSettingsData
+} from './MockDataTypes';
