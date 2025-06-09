@@ -1,5 +1,5 @@
 
-import { TelegramUser, AuthState } from './types';
+import { TelegramUser, TelegramAuthState } from '../../types/TelegramTypes';
 import { AuthValidator } from './AuthValidator';
 import UserRegistrationService from '../UserRegistrationService';
 import ErrorService from '../ErrorService';
@@ -18,7 +18,7 @@ export class UserAuthenticator {
     this.logger = LoggingService.getInstance();
   }
 
-  async authenticateUser(telegramUser: TelegramUser): Promise<AuthState> {
+  async authenticateUser(telegramUser: TelegramUser): Promise<TelegramAuthState> {
     this.logger.info('Начало аутентификации пользователя', { userId: telegramUser.id });
     
     try {

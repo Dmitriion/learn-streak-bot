@@ -1,3 +1,4 @@
+
 import LoggingService from './LoggingService';
 import { AuthValidator } from './auth/AuthValidator';
 import { UserAuthenticator } from './auth/UserAuthenticator';
@@ -32,7 +33,24 @@ class AuthService {
   }
 
   async registerUser(telegramUser: TelegramUser, fullName: string): Promise<TelegramAuthState> {
-    return this.registrationManager.registerUser(telegramUser, fullName);
+    try {
+      const registrationData = await this.registrationManager.registerUser(telegramUser, fullName);
+      
+      return {
+        isAuthenticated: true,
+        isRegistered: true,
+        user: telegramUser,
+        registrationStatus: 'success'
+      };
+    } catch (error) {
+      return {
+        isAuthenticated: true,
+        isRegistered: false,
+        user: telegramUser,
+        registrationStatus: 'error',
+        error: 'Ошибка при регистрации'
+      };
+    }
   }
 }
 

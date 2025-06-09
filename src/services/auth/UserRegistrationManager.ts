@@ -60,7 +60,8 @@ class UserRegistrationManager {
 
   async checkUserExists(userId: string): Promise<boolean> {
     try {
-      return await this.mockBackend.checkUserExists(userId);
+      const result = await this.mockBackend.checkUserExists(userId);
+      return result.user_exists || false;
     } catch (error) {
       this.logger.error('Ошибка проверки пользователя', { error, userId });
       return false;
