@@ -3,7 +3,7 @@ import React from 'react';
 import TelegramContext from '../contexts/TelegramContext';
 import { useTelegramWebApp } from '../hooks/useTelegramWebApp';
 import { useTelegramAuth } from '../hooks/useTelegramAuth';
-import { TelegramProviderProps, TelegramContextType } from '../types/telegram';
+import { TelegramProviderProps, TelegramContextType } from '../types/TelegramTypes';
 
 export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) => {
   const webAppFeatures = useTelegramWebApp();

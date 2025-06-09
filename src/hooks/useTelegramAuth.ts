@@ -1,11 +1,13 @@
 
 import { useState, useEffect } from 'react';
-import AuthService, { TelegramUser, AuthState } from '../services/AuthService';
+import AuthService from '../services/AuthService';
 import UserRegistrationService from '../services/UserRegistrationService';
 import AutomationManager from '../services/automation/AutomationManager';
+import { TelegramUser, TelegramAuthState } from '../types/TelegramTypes';
+import { getTelegramUser } from '../utils/telegramTypeGuards';
 
 export const useTelegramAuth = () => {
-  const [authState, setAuthState] = useState<AuthState>({
+  const [authState, setAuthState] = useState<TelegramAuthState>({
     isAuthenticated: false,
     isRegistered: false,
     user: null,
@@ -17,11 +19,11 @@ export const useTelegramAuth = () => {
   const automationManager = AutomationManager.getInstance();
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      if (window.Telegram.WebApp.initDataUnsafe?.user) {
-        const telegramUser = window.Telegram.WebApp.initDataUnsafe.user as TelegramUser;
-        handleAuthentication(telegramUser);
-      }
+    // Используем безопасный геттер пользователя
+    const telegramUser = getTelegramUser();
+    
+    if (telegramUser) {
+      handleAuthentication(telegramUser);
     } else {
       // Фоллбэк для разработки вне Telegram
       const testUser: TelegramUser = {

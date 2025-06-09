@@ -1,5 +1,5 @@
 
-import { TelegramUser, AuthState } from './auth/types';
+import { TelegramUser, TelegramAuthState } from '../types/TelegramTypes';
 import { AuthValidator } from './auth/AuthValidator';
 import { UserAuthenticator } from './auth/UserAuthenticator';
 import { UserRegistrationManager } from './auth/UserRegistrationManager';
@@ -27,14 +27,14 @@ class AuthService {
     return this.validator.validateInitData(initData);
   }
 
-  async authenticateUser(telegramUser: TelegramUser): Promise<AuthState> {
+  async authenticateUser(telegramUser: TelegramUser): Promise<TelegramAuthState> {
     return this.authenticator.authenticateUser(telegramUser);
   }
 
-  async registerUser(telegramUser: TelegramUser, fullName: string): Promise<AuthState> {
+  async registerUser(telegramUser: TelegramUser, fullName: string): Promise<TelegramAuthState> {
     return this.registrationManager.registerUser(telegramUser, fullName);
   }
 }
 
 export default AuthService;
-export type { TelegramUser, AuthState };
+export type { TelegramUser, TelegramAuthState };

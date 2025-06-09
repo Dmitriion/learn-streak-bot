@@ -2,6 +2,7 @@
 import CloudStorageBase from './storage/CloudStorageBase';
 import { UserDataManager } from './storage/UserDataManager';
 import { CloudStorageData } from '../types/metrics';
+import { hasCloudStorage } from '../utils/telegramTypeGuards';
 
 class TelegramCloudStorage extends CloudStorageBase {
   private static instance: TelegramCloudStorage;
@@ -21,7 +22,7 @@ class TelegramCloudStorage extends CloudStorageBase {
 
   // Реализация абстрактных методов базового класса
   protected async saveToCloud(key: string, data: CloudStorageData): Promise<boolean> {
-    if (window.Telegram?.WebApp?.CloudStorage) {
+    if (hasCloudStorage()) {
       return new Promise((resolve) => {
         window.Telegram.WebApp.CloudStorage.setItem(key, JSON.stringify(data), (error) => {
           if (error) {
@@ -37,7 +38,7 @@ class TelegramCloudStorage extends CloudStorageBase {
   }
 
   protected async loadFromCloud(key: string): Promise<CloudStorageData | null> {
-    if (window.Telegram?.WebApp?.CloudStorage) {
+    if (hasCloudStorage()) {
       return new Promise((resolve) => {
         window.Telegram.WebApp.CloudStorage.getItem(key, (error, result) => {
           if (error || !result) {
@@ -57,7 +58,7 @@ class TelegramCloudStorage extends CloudStorageBase {
   }
 
   protected async removeFromCloud(key: string): Promise<boolean> {
-    if (window.Telegram?.WebApp?.CloudStorage) {
+    if (hasCloudStorage()) {
       return new Promise((resolve) => {
         window.Telegram.WebApp.CloudStorage.removeItem(key, (error) => {
           resolve(!error);
@@ -68,7 +69,7 @@ class TelegramCloudStorage extends CloudStorageBase {
   }
 
   protected async getCloudKeys(): Promise<string[]> {
-    if (window.Telegram?.WebApp?.CloudStorage) {
+    if (hasCloudStorage()) {
       return new Promise((resolve) => {
         window.Telegram.WebApp.CloudStorage.getKeys((error, result) => {
           if (error || !result) {

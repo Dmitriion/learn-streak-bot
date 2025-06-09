@@ -1,6 +1,11 @@
 
-import { TelegramMetrics } from '../../types/analytics';
+import { TelegramMetrics, TelegramUser } from '../../types/TelegramTypes';
 import LoggingService from '../LoggingService';
+import { 
+  isTelegramWebAppAvailable, 
+  getTelegramWebApp, 
+  isValidTelegramMetrics 
+} from '../../utils/telegramTypeGuards';
 
 class TelegramAnalytics {
   private static instance: TelegramAnalytics;
@@ -19,12 +24,11 @@ class TelegramAnalytics {
   }
 
   initializeTelegramMetrics(userId: string, telegramUserId: number) {
-    if (!window.Telegram?.WebApp) {
+    const webApp = getTelegramWebApp();
+    if (!webApp) {
       this.logger.warn('Telegram WebApp API недоступен');
       return;
     }
-
-    const webApp = window.Telegram.WebApp;
     
     this.metrics = {
       user_id: userId,
@@ -39,6 +43,13 @@ class TelegramAnalytics {
       main_button_clicks: 0,
       settings_button_clicks: 0
     };
+
+    // Валидируем созданные метрики
+    if (!isValidTelegramMetrics(this.metrics)) {
+      this.logger.error('Созданные метрики не прошли валидацию');
+      this.metrics = null;
+      return;
+    }
 
     this.setupTelegramEventListeners();
     this.saveMetrics();
@@ -170,7 +181,10 @@ class TelegramAnalytics {
   getTelegramMetrics(): TelegramMetrics | null {
     try {
       const data = localStorage.getItem('telegram_metrics');
-      return data ? JSON.parse(data) : null;
+      if (!data) return null;
+      
+      const parsed = JSON.parse(data);
+      return isValidTelegramMetrics(parsed) ? parsed : null;
     } catch (error) {
       this.logger.error('Ошибка загрузки Telegram метрик', { error });
       return null;

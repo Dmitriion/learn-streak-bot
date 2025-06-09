@@ -1,17 +1,20 @@
+
 import LoggingService from './LoggingService';
 import SecurityValidationService from './validation/SecurityValidationService';
 import ContentValidationService from './validation/ContentValidationService';
 import { 
   TelegramInitData, 
   TelegramUser, 
-  InitDataValidationResult, 
-  UserValidationResult, 
-  ValidationResult 
-} from './auth/types';
+  TelegramInitDataValidationResult, 
+  TelegramUserValidationResult, 
+  TelegramValidationResult 
+} from '../types/TelegramTypes';
 import { 
   isTelegramWebAppAvailable, 
   hasTelegramUser, 
-  isValidTelegramUser 
+  isValidTelegramUser,
+  isValidTelegramInitData,
+  getTelegramInitData
 } from '../utils/telegramTypeGuards';
 
 interface ParsedInitData {
@@ -55,7 +58,7 @@ class TelegramValidationService {
     return isTelegramWebAppAvailable();
   }
 
-  validateInitData(initData: string): InitDataValidationResult {
+  validateInitData(initData: string): TelegramInitDataValidationResult {
     try {
       if (this.isTelegramEnvironment()) {
         return this.validateTelegramWebAppData();
@@ -106,6 +109,11 @@ class TelegramValidationService {
         this.logger.warn('Development режим: пропуск проверки возраста initData');
       }
 
+      // Проверяем с помощью type guard
+      if (!isValidTelegramInitData(data)) {
+        return { isValid: false, error: 'Невалидная структура initData' };
+      }
+
       const securityCheck = this.securityService.performSecurityChecks(data);
       if (!securityCheck.isValid) {
         return { isValid: false, error: securityCheck.error };
@@ -128,7 +136,7 @@ class TelegramValidationService {
     }
   }
 
-  private validateTelegramWebAppData(): InitDataValidationResult {
+  private validateTelegramWebAppData(): TelegramInitDataValidationResult {
     try {
       const webApp = window.Telegram?.WebApp;
       if (!webApp) {
@@ -143,27 +151,19 @@ class TelegramValidationService {
         return { isValid: false, error: 'Данные пользователя недоступны' };
       }
 
-      const user = webApp.initDataUnsafe.user;
-      if (!isValidTelegramUser(user)) {
-        return { isValid: false, error: 'Невалидные данные пользователя' };
+      // Используем безопасный геттер
+      const initData = getTelegramInitData();
+      if (!initData) {
+        return { isValid: false, error: 'Невалидные данные WebApp' };
       }
 
-      const parsedData: TelegramInitData = {
-        user,
-        auth_date: Math.floor(Date.now() / 1000),
-        hash: 'telegram_webapp_validated',
-        start_param: webApp.initDataUnsafe.start_param,
-        chat_type: webApp.initDataUnsafe.chat_type,
-        chat_instance: webApp.initDataUnsafe.chat_instance
-      };
-
-      const securityCheck = this.securityService.performSecurityChecks(parsedData);
+      const securityCheck = this.securityService.performSecurityChecks(initData);
       if (!securityCheck.isValid) {
         return { isValid: false, error: securityCheck.error };
       }
 
       this.logger.info('Telegram WebApp: валидация успешна');
-      return { isValid: true, parsedData };
+      return { isValid: true, parsedData: initData };
 
     } catch (error) {
       this.logger.error('Ошибка валидации Telegram WebApp данных:', error);
@@ -190,11 +190,11 @@ class TelegramValidationService {
     };
   }
 
-  validateUserData(telegramUser: TelegramUser): UserValidationResult {
+  validateUserData(telegramUser: TelegramUser): TelegramUserValidationResult {
     return this.contentService.validateUserData(telegramUser);
   }
 
-  validateWebhookUrl(url: string): ValidationResult {
+  validateWebhookUrl(url: string): TelegramValidationResult {
     return this.securityService.validateWebhookUrl(url);
   }
 

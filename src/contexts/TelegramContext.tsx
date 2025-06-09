@@ -1,6 +1,6 @@
 
 import { createContext, useContext } from 'react';
-import { TelegramContextType } from '../types/telegram';
+import { TelegramContextType } from '../types/TelegramTypes';
 
 const TelegramContext = createContext<TelegramContextType | null>(null);
 
