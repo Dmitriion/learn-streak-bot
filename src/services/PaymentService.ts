@@ -1,4 +1,3 @@
-
 import { SubscriptionPlan, PaymentData, PaymentResponse, SubscriptionStatus } from '../schemas/validation';
 import YOUCasaProvider from './YOUCasaProvider';
 import RobocasaProvider from './RobocasaProvider';
@@ -20,17 +19,17 @@ class PaymentService {
   constructor() {
     this.providers = new Map();
     
-    // Инициализируем провайдеры с тестовыми конфигурациями
+    // Инициализируем провайдеры с правильными environment variables
     this.providers.set('youkassa', new YOUCasaProvider({
-      shopId: process.env.YOUKASSA_SHOP_ID || 'test_shop_id',
-      secretKey: process.env.YOUKASSA_SECRET_KEY || 'test_secret_key',
-      testMode: true
+      shopId: import.meta.env.VITE_YOUKASSA_SHOP_ID || 'test_shop_id',
+      secretKey: import.meta.env.VITE_YOUKASSA_SECRET_KEY || 'test_secret_key',
+      testMode: import.meta.env.VITE_APP_ENV !== 'production'
     }));
     
     this.providers.set('robocasa', new RobocasaProvider({
-      merchantId: process.env.ROBOCASA_MERCHANT_ID || 'test_merchant_id',
-      secretKey: process.env.ROBOCASA_SECRET_KEY || 'test_secret_key',
-      testMode: true
+      merchantId: import.meta.env.VITE_ROBOCASA_MERCHANT_ID || 'test_merchant_id',
+      secretKey: import.meta.env.VITE_ROBOCASA_SECRET_KEY || 'test_secret_key',
+      testMode: import.meta.env.VITE_APP_ENV !== 'production'
     }));
     
     this.plansProvider = new PlansProvider();
@@ -38,6 +37,11 @@ class PaymentService {
     this.automationManager = AutomationManager.getInstance();
     this.errorService = ErrorService.getInstance();
     this.logger = LoggingService.getInstance();
+
+    this.logger.info('PaymentService инициализирован', { 
+      environment: import.meta.env.VITE_APP_ENV,
+      testMode: import.meta.env.VITE_APP_ENV !== 'production'
+    });
   }
 
   static getInstance(): PaymentService {

@@ -21,10 +21,9 @@ export default defineConfig(({ mode }) => ({
     },
   },
   define: {
-    // Безопасно передаем environment variables для Vite
-    __TELEGRAM_BOT_TOKEN__: JSON.stringify(process.env.VITE_TELEGRAM_BOT_TOKEN || 'development_token'),
-    __N8N_WEBHOOK_URL__: JSON.stringify(process.env.VITE_N8N_WEBHOOK_URL || ''),
+    // Правильно передаем environment variables для Vite
     __APP_ENV__: JSON.stringify(mode),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   build: {
     // Оптимизация для Telegram Mini App
