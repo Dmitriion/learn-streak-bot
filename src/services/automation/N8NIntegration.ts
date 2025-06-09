@@ -1,5 +1,4 @@
 
-import LoggingService from '../LoggingService';
 import { AutomationEvent, N8NWebhookEvent, AutomationConfig, AutomationTrigger } from '../../types/automation';
 import { N8NConfig } from './N8NConfig';
 import { N8NWebhookClient } from './N8NWebhookClient';
@@ -7,13 +6,11 @@ import { N8NConnectionManager } from './N8NConnectionManager';
 
 class N8NIntegration {
   private static instance: N8NIntegration;
-  private logger: LoggingService;
   private config: N8NConfig;
   private webhookClient: N8NWebhookClient;
   private connectionManager: N8NConnectionManager;
 
   constructor() {
-    this.logger = LoggingService.getInstance();
     this.config = new N8NConfig();
     this.webhookClient = new N8NWebhookClient();
     this.connectionManager = new N8NConnectionManager(this.config, this.webhookClient);
@@ -44,13 +41,13 @@ class N8NIntegration {
 
   async sendEvent(event: AutomationEvent): Promise<boolean> {
     if (!this.config.isConfigured()) {
-      this.logger.warn('N8N webhook URL не настроен, пропускаем отправку события', { event });
+      console.warn('[N8NIntegration] N8N webhook URL не настроен, пропускаем отправку события', { event });
       return false;
     }
 
     const trigger = this.config.findTrigger(event.type);
     if (!trigger || !trigger.enabled) {
-      this.logger.warn('Триггер отключен или не найден', { eventType: event.type });
+      console.warn('[N8NIntegration] Триггер отключен или не найден', { eventType: event.type });
       return false;
     }
 

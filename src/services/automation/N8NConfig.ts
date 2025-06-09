@@ -1,14 +1,11 @@
 
 import { AutomationTrigger, AutomationConfig } from '../../types/automation';
-import LoggingService from '../LoggingService';
 
 export class N8NConfig {
   private triggers: AutomationTrigger[] = [];
   private baseWebhookUrl: string = '';
-  private logger: LoggingService;
 
   constructor() {
-    this.logger = LoggingService.getInstance();
     this.initializeDefaultTriggers();
     this.loadFromEnvironment();
   }
@@ -80,7 +77,7 @@ export class N8NConfig {
 
   setWebhookUrl(url: string) {
     this.baseWebhookUrl = url;
-    this.logger.info('N8N webhook URL обновлен', { 
+    console.info('[N8NConfig] N8N webhook URL обновлен', { 
       hasUrl: !!url,
       environment: import.meta.env.MODE 
     });
@@ -110,9 +107,9 @@ export class N8NConfig {
     const trigger = this.triggers.find(t => t.id === triggerId);
     if (trigger) {
       trigger.enabled = enabled;
-      this.logger.info('Триггер обновлен', { triggerId, enabled });
+      console.info('[N8NConfig] Триггер обновлен', { triggerId, enabled });
     } else {
-      this.logger.warn('Триггер не найден', { triggerId });
+      console.warn('[N8NConfig] Триггер не найден', { triggerId });
     }
   }
 
@@ -123,7 +120,7 @@ export class N8NConfig {
     if (config.enabled_triggers) {
       this.triggers = config.enabled_triggers;
     }
-    this.logger.info('N8N конфигурация обновлена', { config });
+    console.info('[N8NConfig] N8N конфигурация обновлена', { config });
   }
 
   buildWebhookUrl(trigger: AutomationTrigger): string {
