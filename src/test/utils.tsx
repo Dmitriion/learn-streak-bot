@@ -1,11 +1,12 @@
-
 import React from 'react';
 import { render, RenderOptions } from '@testing-library/react';
-import { screen, waitFor, fireEvent } from '@testing-library/dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TelegramProvider } from '../providers/TelegramProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { TestSetupOptions, RenderWithProvidersOptions } from './types';
+
+// Импортируем screen, waitFor, fireEvent отдельно
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 
 // Создаем новый QueryClient для каждого теста
 const createTestQueryClient = () => new QueryClient({
