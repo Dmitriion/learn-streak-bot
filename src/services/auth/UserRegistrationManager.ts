@@ -41,14 +41,8 @@ class UserRegistrationManager {
       // Сохраняем в mock backend с правильной сигнатурой
       await this.mockBackend.registerUser(registrationData);
       
-      // Отправляем событие автоматизации с правильной сигнатурой
-      await this.automationManager.triggerEvent('user_registered', {
-        user_id: telegramUser.id.toString(),
-        username: telegramUser.username || '',
-        full_name: fullName,
-        registration_date: new Date().toISOString(),
-        telegram_data: telegramUser
-      });
+      // Отправляем событие автоматизации используя правильный метод
+      await this.automationManager.onUserRegistered(telegramUser, fullName);
 
       this.logger.info('Пользователь зарегистрирован', { userId: telegramUser.id });
       return registrationData;
