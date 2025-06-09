@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { render, RenderOptions, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, RenderOptions } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TelegramProvider } from '../providers/TelegramProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
