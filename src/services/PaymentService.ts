@@ -1,3 +1,4 @@
+
 import { SubscriptionPlan, PaymentData, PaymentResponse, SubscriptionStatus } from '../schemas/validation';
 import YOUCasaProvider from './YOUCasaProvider';
 import RobocasaProvider from './RobocasaProvider';
@@ -18,30 +19,82 @@ class PaymentService {
 
   constructor() {
     this.providers = new Map();
-    
-    // Инициализируем провайдеры с правильными environment variables
-    this.providers.set('youkassa', new YOUCasaProvider({
-      shopId: import.meta.env.VITE_YOUKASSA_SHOP_ID || 'test_shop_id',
-      secretKey: import.meta.env.VITE_YOUKASSA_SECRET_KEY || 'test_secret_key',
-      testMode: import.meta.env.VITE_APP_ENV !== 'production'
-    }));
-    
-    this.providers.set('robocasa', new RobocasaProvider({
-      merchantId: import.meta.env.VITE_ROBOCASA_MERCHANT_ID || 'test_merchant_id',
-      secretKey: import.meta.env.VITE_ROBOCASA_SECRET_KEY || 'test_secret_key',
-      testMode: import.meta.env.VITE_APP_ENV !== 'production'
-    }));
-    
-    this.plansProvider = new PlansProvider();
-    this.validator = new PaymentValidator();
-    this.automationManager = AutomationManager.getInstance();
-    this.errorService = ErrorService.getInstance();
     this.logger = LoggingService.getInstance();
+    this.errorService = ErrorService.getInstance();
+    
+    // Валидируем environment variables
+    this.validateEnvironment();
+    
+    // Инициализируем провайдеры с проверкой наличия конфигурации
+    this.initializeProviders();
+    
+    this.plansProvider = PlansProvider.getInstance();
+    this.validator = PaymentValidator.getInstance();
+    this.automationManager = AutomationManager.getInstance();
 
     this.logger.info('PaymentService инициализирован', { 
-      environment: import.meta.env.VITE_APP_ENV,
-      testMode: import.meta.env.VITE_APP_ENV !== 'production'
+      environment: import.meta.env.VITE_APP_ENV || import.meta.env.MODE,
+      testMode: import.meta.env.VITE_APP_ENV !== 'production',
+      providersCount: this.providers.size
     });
+  }
+
+  private validateEnvironment(): void {
+    const requiredVars = [
+      'VITE_YOUKASSA_SHOP_ID',
+      'VITE_YOUKASSA_SECRET_KEY',
+      'VITE_ROBOCASA_MERCHANT_ID', 
+      'VITE_ROBOCASA_SECRET_KEY'
+    ];
+
+    const missingVars = requiredVars.filter(varName => 
+      !import.meta.env[varName] || import.meta.env[varName].trim() === ''
+    );
+
+    if (missingVars.length > 0) {
+      this.logger.warn('Отсутствуют environment variables для платежных провайдеров', { 
+        missingVars 
+      });
+    }
+  }
+
+  private initializeProviders(): void {
+    try {
+      // YOUCasa Provider
+      if (import.meta.env.VITE_YOUKASSA_SHOP_ID && import.meta.env.VITE_YOUKASSA_SECRET_KEY) {
+        this.providers.set('youkassa', new YOUCasaProvider({
+          shopId: import.meta.env.VITE_YOUKASSA_SHOP_ID,
+          secretKey: import.meta.env.VITE_YOUKASSA_SECRET_KEY,
+          testMode: import.meta.env.VITE_APP_ENV !== 'production'
+        }));
+        this.logger.info('YOUCasa provider инициализирован');
+      } else {
+        this.logger.warn('YOUCasa provider не инициализирован - отсутствуют credentials');
+      }
+
+      // Robocasa Provider  
+      if (import.meta.env.VITE_ROBOCASA_MERCHANT_ID && import.meta.env.VITE_ROBOCASA_SECRET_KEY) {
+        this.providers.set('robocasa', new RobocasaProvider({
+          merchantId: import.meta.env.VITE_ROBOCASA_MERCHANT_ID,
+          secretKey: import.meta.env.VITE_ROBOCASA_SECRET_KEY,
+          testMode: import.meta.env.VITE_APP_ENV !== 'production'
+        }));
+        this.logger.info('Robocasa provider инициализирован');
+      } else {
+        this.logger.warn('Robocasa provider не инициализирован - отсутствуют credentials');
+      }
+
+      if (this.providers.size === 0) {
+        this.logger.error('Ни один платежный провайдер не инициализирован');
+      }
+    } catch (error) {
+      this.errorService.handleError({
+        category: 'payment',
+        message: 'Ошибка инициализации платежных провайдеров',
+        originalError: error as Error,
+        recoverable: false
+      });
+    }
   }
 
   static getInstance(): PaymentService {
@@ -52,18 +105,40 @@ class PaymentService {
   }
 
   getAvailablePlans(): SubscriptionPlan[] {
-    return this.plansProvider.getAvailablePlans();
+    try {
+      return this.plansProvider.getAvailablePlans();
+    } catch (error) {
+      this.errorService.handleError({
+        category: 'payment',
+        message: 'Ошибка получения планов',
+        originalError: error as Error,
+        recoverable: true
+      });
+      return [];
+    }
   }
 
   validatePaymentData(paymentData: PaymentData): { isValid: boolean; error?: string } {
-    return this.validator.validatePaymentData(paymentData);
+    try {
+      return this.validator.validatePaymentData(paymentData);
+    } catch (error) {
+      this.errorService.handleError({
+        category: 'validation',
+        message: 'Ошибка валидации данных платежа',
+        originalError: error as Error,
+        context: { paymentData },
+        recoverable: true
+      });
+      return { isValid: false, error: 'Ошибка валидации' };
+    }
   }
 
   async createPayment(paymentData: PaymentData): Promise<PaymentResponse> {
     this.logger.info('Создание платежа', { 
       userId: paymentData.user_id, 
       planId: paymentData.plan_id,
-      amount: paymentData.amount 
+      amount: paymentData.amount,
+      provider: paymentData.provider
     });
 
     try {
@@ -77,7 +152,15 @@ class PaymentService {
 
       const provider = this.providers.get(paymentData.provider);
       if (!provider) {
-        throw new Error(`Провайдер ${paymentData.provider} не найден`);
+        this.logger.error('Провайдер не найден или не инициализирован', { 
+          provider: paymentData.provider,
+          availableProviders: Array.from(this.providers.keys())
+        });
+        
+        return {
+          success: false,
+          error: `Провайдер ${paymentData.provider} недоступен`
+        };
       }
 
       const result = await provider.createPayment(paymentData);
@@ -85,15 +168,23 @@ class PaymentService {
       if (result.success) {
         this.logger.info('Платеж успешно создан', { 
           userId: paymentData.user_id,
-          paymentId: result.payment_id 
+          paymentId: result.payment_id,
+          provider: paymentData.provider
         });
         
         // Триггер автоматизации при успешной оплате
-        await this.automationManager.onPaymentSuccess(
-          paymentData.user_id,
-          paymentData.plan_id,
-          paymentData.amount
-        );
+        try {
+          await this.automationManager.onPaymentSuccess(
+            paymentData.user_id,
+            paymentData.plan_id,
+            paymentData.amount
+          );
+        } catch (automationError) {
+          this.logger.warn('Ошибка триггера автоматизации при создании платежа', { 
+            automationError 
+          });
+          // Не прерываем процесс создания платежа из-за ошибки автоматизации
+        }
       }
 
       return result;
@@ -153,22 +244,35 @@ class PaymentService {
   }
 
   async checkPaymentStatus(paymentId: string): Promise<PaymentResponse> {
+    this.logger.info('Проверка статуса платежа', { paymentId });
+
     try {
-      // Проверяем статус у всех провайдеров
+      // Проверяем статус у всех доступных провайдеров
       for (const [name, provider] of this.providers.entries()) {
         try {
+          this.logger.info(`Проверка статуса у провайдера ${name}`, { paymentId });
           const result = await provider.checkPaymentStatus(paymentId);
+          
           if (result.success) {
+            this.logger.info('Статус платежа получен', { 
+              paymentId, 
+              provider: name,
+              status: result.data?.status
+            });
             return result;
           }
-        } catch (e) {
-          this.logger.warn(`Ошибка проверки статуса у провайдера ${name}`, { paymentId, error: e });
+        } catch (providerError) {
+          this.logger.warn(`Ошибка проверки статуса у провайдера ${name}`, { 
+            paymentId, 
+            provider: name,
+            error: providerError 
+          });
         }
       }
       
       return {
         success: false,
-        error: 'Платеж не найден'
+        error: 'Платеж не найден ни у одного провайдера'
       };
     } catch (error) {
       this.errorService.handleError({
@@ -184,6 +288,32 @@ class PaymentService {
         error: 'Ошибка проверки статуса платежа'
       };
     }
+  }
+
+  // Диагностические методы
+  getProviderStatus(): { [key: string]: boolean } {
+    const status: { [key: string]: boolean } = {};
+    
+    for (const [name] of this.providers.entries()) {
+      status[name] = true; // Если провайдер в Map, значит он инициализирован
+    }
+    
+    return status;
+  }
+
+  getServiceHealth(): { healthy: boolean; details: any } {
+    const providerStatus = this.getProviderStatus();
+    const availableProviders = Object.keys(providerStatus).length;
+    
+    return {
+      healthy: availableProviders > 0,
+      details: {
+        availableProviders,
+        providerStatus,
+        plansCount: this.getAvailablePlans().length,
+        environment: import.meta.env.VITE_APP_ENV || import.meta.env.MODE
+      }
+    };
   }
 }
 

@@ -9,6 +9,7 @@ import MockDataManager from './MockDataManager';
 import QuickActions from './QuickActions';
 import ProductionReadiness from '../dev/ProductionReadiness';
 import ServiceDiagnostics from '../dev/ServiceDiagnostics';
+import ProductionHealthCheck from '../dev/ProductionHealthCheck';
 
 const SettingsPage: React.FC = () => {
   return (
@@ -19,6 +20,7 @@ const SettingsPage: React.FC = () => {
         {/* Development компоненты */}
         {import.meta.env.DEV && (
           <>
+            <ProductionHealthCheck />
             <ServiceDiagnostics />
             <ProductionReadiness />
           </>
