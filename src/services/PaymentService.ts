@@ -1,16 +1,19 @@
 
-import { SubscriptionPlan, PaymentData, PaymentResponse, SubscriptionStatus } from '../schemas/validation';
-import YOUCasaProvider from './YOUCasaProvider';
-import RobocasaProvider from './RobocasaProvider';
+import { SubscriptionPlan, PaymentData, PaymentResponse } from '../schemas/validation';
 import PlansProvider from './payment/PlansProvider';
 import PaymentValidator from './payment/PaymentValidator';
+import PaymentProviderManager from './payment/PaymentProviderManager';
+import PaymentStatusService from './payment/PaymentStatusService';
+import PaymentHealthService, { ServiceHealthDetails } from './payment/PaymentHealthService';
 import AutomationManager from './automation/AutomationManager';
 import ErrorService from './ErrorService';
 import LoggingService from './LoggingService';
 
 class PaymentService {
   private static instance: PaymentService;
-  private providers: Map<string, any>;
+  private providerManager: PaymentProviderManager;
+  private statusService: PaymentStatusService;
+  private healthService: PaymentHealthService;
   private plansProvider: PlansProvider;
   private validator: PaymentValidator;
   private automationManager: AutomationManager;
@@ -18,16 +21,12 @@ class PaymentService {
   private logger: LoggingService;
 
   constructor() {
-    this.providers = new Map();
     this.logger = LoggingService.getInstance();
     this.errorService = ErrorService.getInstance();
     
-    // Валидируем environment variables
-    this.validateEnvironment();
-    
-    // Инициализируем провайдеры с проверкой наличия конфигурации
-    this.initializeProviders();
-    
+    this.providerManager = PaymentProviderManager.getInstance();
+    this.statusService = PaymentStatusService.getInstance();
+    this.healthService = PaymentHealthService.getInstance();
     this.plansProvider = PlansProvider.getInstance();
     this.validator = PaymentValidator.getInstance();
     this.automationManager = AutomationManager.getInstance();
@@ -35,66 +34,8 @@ class PaymentService {
     this.logger.info('PaymentService инициализирован', { 
       environment: import.meta.env.VITE_APP_ENV || import.meta.env.MODE,
       testMode: import.meta.env.VITE_APP_ENV !== 'production',
-      providersCount: this.providers.size
+      providersCount: this.providerManager.getProviderStatus()
     });
-  }
-
-  private validateEnvironment(): void {
-    const requiredVars = [
-      'VITE_YOUKASSA_SHOP_ID',
-      'VITE_YOUKASSA_SECRET_KEY',
-      'VITE_ROBOCASA_MERCHANT_ID', 
-      'VITE_ROBOCASA_SECRET_KEY'
-    ];
-
-    const missingVars = requiredVars.filter(varName => 
-      !import.meta.env[varName] || import.meta.env[varName].trim() === ''
-    );
-
-    if (missingVars.length > 0) {
-      this.logger.warn('Отсутствуют environment variables для платежных провайдеров', { 
-        missingVars 
-      });
-    }
-  }
-
-  private initializeProviders(): void {
-    try {
-      // YOUCasa Provider
-      if (import.meta.env.VITE_YOUKASSA_SHOP_ID && import.meta.env.VITE_YOUKASSA_SECRET_KEY) {
-        this.providers.set('youkassa', new YOUCasaProvider({
-          shopId: import.meta.env.VITE_YOUKASSA_SHOP_ID,
-          secretKey: import.meta.env.VITE_YOUKASSA_SECRET_KEY,
-          testMode: import.meta.env.VITE_APP_ENV !== 'production'
-        }));
-        this.logger.info('YOUCasa provider инициализирован');
-      } else {
-        this.logger.warn('YOUCasa provider не инициализирован - отсутствуют credentials');
-      }
-
-      // Robocasa Provider  
-      if (import.meta.env.VITE_ROBOCASA_MERCHANT_ID && import.meta.env.VITE_ROBOCASA_SECRET_KEY) {
-        this.providers.set('robocasa', new RobocasaProvider({
-          merchantId: import.meta.env.VITE_ROBOCASA_MERCHANT_ID,
-          secretKey: import.meta.env.VITE_ROBOCASA_SECRET_KEY,
-          testMode: import.meta.env.VITE_APP_ENV !== 'production'
-        }));
-        this.logger.info('Robocasa provider инициализирован');
-      } else {
-        this.logger.warn('Robocasa provider не инициализирован - отсутствуют credentials');
-      }
-
-      if (this.providers.size === 0) {
-        this.logger.error('Ни один платежный провайдер не инициализирован');
-      }
-    } catch (error) {
-      this.errorService.handleError({
-        category: 'payment',
-        message: 'Ошибка инициализации платежных провайдеров',
-        originalError: error as Error,
-        recoverable: false
-      });
-    }
   }
 
   static getInstance(): PaymentService {
@@ -150,11 +91,11 @@ class PaymentService {
         };
       }
 
-      const provider = this.providers.get(paymentData.provider);
+      const provider = this.providerManager.getProvider(paymentData.provider);
       if (!provider) {
         this.logger.error('Провайдер не найден или не инициализирован', { 
           provider: paymentData.provider,
-          availableProviders: Array.from(this.providers.keys())
+          availableProviders: Object.keys(this.providerManager.getProviderStatus())
         });
         
         return {
@@ -201,120 +142,25 @@ class PaymentService {
     }
   }
 
-  async getSubscriptionStatus(userId: string): Promise<SubscriptionStatus | null> {
-    try {
-      const provider = this.providers.get('youkassa');
-      if (!provider) {
-        throw new Error('Провайдер не найден');
-      }
-      
-      return await provider.getSubscriptionStatus(userId);
-    } catch (error) {
-      this.errorService.handleError({
-        category: 'payment',
-        message: 'Ошибка получения статуса подписки',
-        originalError: error as Error,
-        context: { userId },
-        recoverable: true
-      });
-      
-      return null;
-    }
+  async getSubscriptionStatus(userId: string) {
+    return this.statusService.getSubscriptionStatus(userId);
   }
 
   async cancelSubscription(userId: string, subscriptionId: string): Promise<boolean> {
-    try {
-      const provider = this.providers.get('youkassa');
-      if (!provider) {
-        throw new Error('Провайдер не найден');
-      }
-      
-      return await provider.cancelSubscription(userId, subscriptionId);
-    } catch (error) {
-      this.errorService.handleError({
-        category: 'payment',
-        message: 'Ошибка отмены подписки',
-        originalError: error as Error,
-        context: { userId, subscriptionId },
-        recoverable: true
-      });
-      
-      return false;
-    }
+    return this.statusService.cancelSubscription(userId, subscriptionId);
   }
 
   async checkPaymentStatus(paymentId: string): Promise<PaymentResponse> {
-    this.logger.info('Проверка статуса платежа', { paymentId });
-
-    try {
-      // Проверяем статус у всех доступных провайдеров
-      for (const [name, provider] of this.providers.entries()) {
-        try {
-          this.logger.info(`Проверка статуса у провайдера ${name}`, { paymentId });
-          const result = await provider.checkPaymentStatus(paymentId);
-          
-          if (result.success) {
-            this.logger.info('Статус платежа получен', { 
-              paymentId, 
-              provider: name,
-              // Убираю обращение к result.data?.status - такого поля нет в PaymentResponse
-              success: result.success
-            });
-            return result;
-          }
-        } catch (providerError) {
-          this.logger.warn(`Ошибка проверки статуса у провайдера ${name}`, { 
-            paymentId, 
-            provider: name,
-            error: providerError 
-          });
-        }
-      }
-      
-      return {
-        success: false,
-        error: 'Платеж не найден ни у одного провайдера'
-      };
-    } catch (error) {
-      this.errorService.handleError({
-        category: 'payment',
-        message: 'Ошибка проверки статуса платежа',
-        originalError: error as Error,
-        context: { paymentId },
-        recoverable: true
-      });
-      
-      return {
-        success: false,
-        error: 'Ошибка проверки статуса платежа'
-      };
-    }
+    return this.statusService.checkPaymentStatus(paymentId);
   }
 
   // Диагностические методы
   getProviderStatus(): { [key: string]: boolean } {
-    const status: { [key: string]: boolean } = {};
-    
-    for (const [name] of this.providers.entries()) {
-      status[name] = true; // Если провайдер в Map, значит он инициализирован
-    }
-    
-    return status;
+    return this.healthService.getProviderStatus();
   }
 
-  getServiceHealth(): { healthy: boolean; details: any } {
-    const providerStatus = this.getProviderStatus();
-    const availableProviders = Object.keys(providerStatus).length;
-    
-    return {
-      healthy: availableProviders > 0,
-      details: {
-        availableProviders,
-        providerStatus,
-        plansCount: this.getAvailablePlans().length,
-        environment: import.meta.env.VITE_APP_ENV || import.meta.env.MODE
-      }
-    };
+  getServiceHealth(): ServiceHealthDetails {
+    return this.healthService.getServiceHealth();
   }
 }
 
