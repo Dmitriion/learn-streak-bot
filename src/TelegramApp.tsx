@@ -4,6 +4,7 @@ import { useTelegram } from './providers/TelegramProvider';
 import { useTelegramNavigation } from './hooks/useTelegramNavigation';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useThemeAndViewport } from './hooks/useThemeAndViewport';
+import { useSetupWizard } from './hooks/useSetupWizard';
 import TelegramProductionService from './services/TelegramProductionService';
 import BuildValidator from './services/BuildValidator';
 import TelegramErrorBoundary from './components/telegram/TelegramErrorBoundary';
@@ -11,6 +12,7 @@ import AppLoader from './components/app/AppLoader';
 import AppStyles from './components/app/AppStyles';
 import AppRouter from './components/app/AppRouter';
 import Registration from './components/Registration';
+import SetupWizard from './components/setup/SetupWizard';
 
 const TelegramApp = () => {
   const { 
@@ -23,7 +25,9 @@ const TelegramApp = () => {
     registerUser,
     viewportHeight
   } = useTelegram();
+  
   const { currentRoute, params, isNavigationReady } = useTelegramNavigation();
+  const { shouldShowWizard, completeSetup } = useSetupWizard();
 
   useAppInitialization();
   useThemeAndViewport({ theme, viewportHeight });
@@ -33,16 +37,13 @@ const TelegramApp = () => {
     const productionService = TelegramProductionService.getInstance();
     const buildValidator = BuildValidator.getInstance();
     
-    // Инициализируем production настройки
     productionService.initializeProduction();
     
-    // Валидируем окружение
     const isValidEnvironment = productionService.validateEnvironment();
     if (!isValidEnvironment) {
       console.warn('Environment validation failed');
     }
     
-    // Проверяем готовность к production (только в development)
     if (import.meta.env.DEV) {
       const readiness = buildValidator.getProductionReadinessStatus();
       console.log(`Production readiness: ${readiness.score}%`, readiness.checks);
@@ -52,6 +53,15 @@ const TelegramApp = () => {
   // Показываем загрузчик только во время начальной проверки
   if (!isReady || registrationStatus === 'checking') {
     return <AppLoader />;
+  }
+
+  // Показываем мастер настройки если требуется
+  if (shouldShowWizard) {
+    return (
+      <TelegramErrorBoundary>
+        <SetupWizard />
+      </TelegramErrorBoundary>
+    );
   }
 
   // Если пользователь аутентифицирован но не зарегистрирован - показываем регистрацию
