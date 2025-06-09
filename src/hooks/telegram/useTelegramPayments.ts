@@ -1,66 +1,71 @@
 
 import { useCallback } from 'react';
 import LoggingService from '../../services/LoggingService';
-
-export interface TelegramInvoiceParams {
-  title: string;
-  description: string;
-  payload: string;
-  provider_token: string;
-  currency: string;
-  prices: Array<{
-    label: string;
-    amount: number;
-  }>;
-}
+import { useToast } from '@/hooks/use-toast';
 
 export const useTelegramPayments = () => {
   const logger = LoggingService.getInstance();
+  const { toast } = useToast();
 
   const openInvoice = useCallback((invoiceLink: string, callback?: (status: string) => void) => {
     if (window.Telegram?.WebApp?.openInvoice) {
       window.Telegram.WebApp.openInvoice(invoiceLink, (status) => {
         logger.info('Telegram payment status', { status });
+        
+        if (status === 'paid') {
+          toast({
+            title: "Платеж успешен",
+            description: "Ваш платеж был обработан успешно",
+          });
+        } else if (status === 'cancelled') {
+          toast({
+            title: "Платеж отменен",
+            description: "Вы отменили платеж",
+            variant: "destructive",
+          });
+        } else if (status === 'failed') {
+          toast({
+            title: "Ошибка платежа",
+            description: "Не удалось обработать платеж",
+            variant: "destructive",
+          });
+        }
+        
         if (callback) callback(status);
       });
     } else {
       logger.warn('Telegram WebApp openInvoice не доступен');
+      toast({
+        title: "Ошибка",
+        description: "Telegram платежи недоступны",
+        variant: "destructive",
+      });
       if (callback) callback('unavailable');
     }
-  }, [logger]);
-
-  const createPaymentUrl = useCallback((params: TelegramInvoiceParams): string => {
-    const botToken = (globalThis as any).__TELEGRAM_BOT_TOKEN__ || '';
-    if (!botToken) {
-      logger.error('Telegram bot token не настроен');
-      return '';
-    }
-
-    // Формируем URL для создания invoice через Telegram Bot API
-    const telegramApiUrl = `https://api.telegram.org/bot${botToken}/createInvoiceLink`;
-    
-    // В реальном приложении этот запрос должен идти через ваш backend
-    logger.info('Payment URL creation requested', { params });
-    
-    return telegramApiUrl;
-  }, [logger]);
+  }, [logger, toast]);
 
   const validatePayment = useCallback(async (paymentData: any): Promise<boolean> => {
     try {
-      // В реальном приложении здесь должна быть валидация через ваш backend
-      logger.info('Payment validation requested', { paymentData });
+      logger.info('Валидация платежа запрошена на фронтенде', { paymentData });
       
-      // Mock валидация для development
-      return paymentData && paymentData.invoice_payload;
+      // ВАЖНО: Реальная валидация должна происходить только на бэкенде
+      // Здесь только базовая проверка структуры данных
+      if (!paymentData || !paymentData.invoice_payload) {
+        logger.warn('Отсутствуют обязательные данные платежа');
+        return false;
+      }
+
+      // Все серьезная валидация должна происходить через PaymentService
+      // который отправляет данные на бэкенд для проверки
+      return true;
     } catch (error) {
-      logger.error('Payment validation error', { error });
+      logger.error('Ошибка валидации платежа', { error });
       return false;
     }
   }, [logger]);
 
   return {
     openInvoice,
-    createPaymentUrl,
     validatePayment
   };
 };

@@ -1,6 +1,7 @@
 
 import YOUCasaProvider from '../YOUCasaProvider';
 import RobocasaProvider from '../RobocasaProvider';
+import TelegramPaymentProvider from '../TelegramPaymentProvider';
 import LoggingService from '../LoggingService';
 import ErrorService from '../ErrorService';
 
@@ -12,6 +13,9 @@ export interface PaymentProviderConfig {
   robocasa?: {
     merchantId: string;
     secretKey: string;
+  };
+  telegram?: {
+    enabled: boolean;
   };
 }
 
@@ -82,6 +86,15 @@ class PaymentProviderManager {
         this.logger.warn('Robocasa provider не инициализирован - отсутствуют credentials');
       }
 
+      // Telegram Payment Provider - всегда доступен если есть N8N
+      const n8nWebhookUrl = localStorage.getItem('n8n_webhook_url');
+      if (n8nWebhookUrl) {
+        this.providers.set('telegram', new TelegramPaymentProvider());
+        this.logger.info('Telegram Payment provider инициализирован');
+      } else {
+        this.logger.warn('Telegram Payment provider не инициализирован - отсутствует N8N webhook URL');
+      }
+
       if (this.providers.size === 0) {
         this.logger.error('Ни один платежный провайдер не инициализирован');
       }
@@ -115,6 +128,12 @@ class PaymentProviderManager {
 
   hasProviders(): boolean {
     return this.providers.size > 0;
+  }
+
+  // Переинициализация провайдеров при изменении настроек
+  reinitializeProviders(): void {
+    this.providers.clear();
+    this.initializeProviders();
   }
 }
 

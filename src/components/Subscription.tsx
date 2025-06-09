@@ -7,20 +7,31 @@ import { usePayment } from '../hooks/usePayment';
 import SubscriptionHeader from './subscription/SubscriptionHeader';
 import ActiveSubscriptionCard from './subscription/ActiveSubscriptionCard';
 import PlanCard from './subscription/PlanCard';
+import PaymentProviderSelector from './subscription/PaymentProviderSelector';
 import SecurityInfo from './subscription/SecurityInfo';
+import PlansProvider from '../services/payment/PlansProvider';
 
 const Subscription = () => {
   const { user, showMainButton, hideMainButton, hapticFeedback } = useTelegram();
   const { isLoading, processPayment } = usePayment();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<string>('telegram');
+  const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
 
   const paymentService = PaymentService.getInstance();
+  const plansProvider = PlansProvider.getInstance();
 
   useEffect(() => {
     const availablePlans = paymentService.getAvailablePlans();
     setPlans(availablePlans);
+
+    const providers = plansProvider.getAvailableProviders();
+    setAvailableProviders(providers);
+    
+    const recommendedProvider = plansProvider.getRecommendedProvider();
+    setSelectedProvider(recommendedProvider);
 
     if (user) {
       loadSubscriptionStatus();
@@ -31,14 +42,14 @@ const Subscription = () => {
     if (selectedPlan && selectedPlan.price > 0) {
       showMainButton(
         `Оплатить ${selectedPlan.price} ₽`,
-        () => processPayment(selectedPlan)
+        () => processPayment(selectedPlan, selectedProvider)
       );
     } else {
       hideMainButton();
     }
 
     return () => hideMainButton();
-  }, [selectedPlan]);
+  }, [selectedPlan, selectedProvider]);
 
   const loadSubscriptionStatus = async () => {
     if (!user) return;
@@ -56,6 +67,11 @@ const Subscription = () => {
   const handlePlanSelect = (plan: SubscriptionPlan) => {
     hapticFeedback('light');
     setSelectedPlan(plan);
+  };
+
+  const handleProviderChange = (provider: string) => {
+    hapticFeedback('light');
+    setSelectedProvider(provider);
   };
 
   const isCurrentPlan = (planId: string) => {
@@ -89,6 +105,14 @@ const Subscription = () => {
             />
           ))}
         </div>
+
+        {selectedPlan && selectedPlan.price > 0 && (
+          <PaymentProviderSelector
+            selectedProvider={selectedProvider}
+            availableProviders={availableProviders}
+            onProviderChange={handleProviderChange}
+          />
+        )}
 
         <SecurityInfo />
       </div>

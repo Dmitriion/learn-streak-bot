@@ -26,7 +26,7 @@ export const PaymentDataSchema = z.object({
   plan_id: z.string().min(1),
   amount: z.number().positive(),
   currency: z.enum(['RUB', 'USD', 'EUR']),
-  provider: z.enum(['youkassa', 'robocasa']),
+  provider: z.enum(['youkassa', 'robocasa', 'telegram']),
   return_url: z.string().url().optional(),
 });
 
@@ -42,7 +42,7 @@ export const SubscriptionStatusSchema = z.object({
   is_active: z.boolean(),
   plan_id: z.string(),
   expires_at: z.string().datetime(),
-  provider: z.enum(['youkassa', 'robocasa']),
+  provider: z.enum(['youkassa', 'robocasa', 'telegram']),
   auto_renew: z.boolean(),
 });
 
@@ -76,6 +76,15 @@ export const ApiResponseSchema = z.object({
   error: z.string().optional(),
 });
 
+// Схемы для Telegram платежей
+export const TelegramPaymentDataSchema = z.object({
+  invoice_payload: z.string(),
+  total_amount: z.number().positive(),
+  currency: z.string(),
+  telegram_payment_charge_id: z.string().optional(),
+  provider_payment_charge_id: z.string().optional(),
+});
+
 // Валидационные функции
 export const validateTelegramUser = (data: unknown) => {
   return TelegramUserSchema.safeParse(data);
@@ -93,6 +102,10 @@ export const validateUserRegistration = (data: unknown) => {
   return UserRegistrationDataSchema.safeParse(data);
 };
 
+export const validateTelegramPayment = (data: unknown) => {
+  return TelegramPaymentDataSchema.safeParse(data);
+};
+
 // Типы для TypeScript
 export type TelegramUser = z.infer<typeof TelegramUserSchema>;
 export type TelegramInitData = z.infer<typeof TelegramInitDataSchema>;
@@ -102,3 +115,4 @@ export type SubscriptionStatus = z.infer<typeof SubscriptionStatusSchema>;
 export type SubscriptionPlan = z.infer<typeof SubscriptionPlanSchema>;
 export type UserRegistrationData = z.infer<typeof UserRegistrationDataSchema>;
 export type ApiResponse = z.infer<typeof ApiResponseSchema>;
+export type TelegramPaymentData = z.infer<typeof TelegramPaymentDataSchema>;

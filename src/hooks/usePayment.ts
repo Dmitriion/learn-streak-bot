@@ -12,40 +12,7 @@ export const usePayment = () => {
 
   const paymentService = PaymentService.getInstance();
 
-  const isValidPaymentUrl = (url: string): boolean => {
-    try {
-      const urlObj = new URL(url);
-      const allowedDomains = ['yookassa.ru', 'robocasa.ru', 'api.yookassa.ru', 'api.robocasa.ru'];
-      return allowedDomains.some(domain => urlObj.hostname.includes(domain));
-    } catch {
-      return false;
-    }
-  };
-
-  const openPaymentUrl = (url: string) => {
-    console.log('Открытие платежной ссылки:', url);
-    
-    if (!isValidPaymentUrl(url)) {
-      console.error('Небезопасная платежная ссылка:', url);
-      showAlert('Ошибка: небезопасная платежная ссылка');
-      return;
-    }
-
-    if (window.Telegram?.WebApp?.openLink) {
-      try {
-        window.Telegram.WebApp.openLink(url);
-        console.log('Платежная ссылка открыта через Telegram WebApp');
-      } catch (error) {
-        console.error('Ошибка открытия ссылки через Telegram:', error);
-        window.open(url, '_blank');
-      }
-    } else {
-      console.log('Telegram WebApp недоступен, используем window.open');
-      window.open(url, '_blank');
-    }
-  };
-
-  const processPayment = async (selectedPlan: SubscriptionPlan) => {
+  const processPayment = async (selectedPlan: SubscriptionPlan, provider: string = 'telegram') => {
     if (!selectedPlan || !user) return;
 
     setIsLoading(true);
@@ -57,7 +24,7 @@ export const usePayment = () => {
         plan_id: selectedPlan.id,
         amount: selectedPlan.price,
         currency: selectedPlan.currency,
-        provider: 'youkassa' as const,
+        provider: provider as 'youkassa' | 'robocasa' | 'telegram',
         return_url: window.location.origin
       };
 
@@ -65,16 +32,26 @@ export const usePayment = () => {
       
       const result = await paymentService.createPayment(paymentData);
 
-      if (result.success && result.payment_url) {
-        toast({
-          title: "Переход к оплате",
-          description: "Вы будете перенаправлены на страницу оплаты",
-        });
+      if (result.success) {
+        if (provider === 'telegram') {
+          toast({
+            title: "Платеж создан",
+            description: "Ожидайте уведомление в Telegram для завершения оплаты",
+          });
+        } else if (result.payment_url) {
+          toast({
+            title: "Переход к оплате",
+            description: "Вы будете перенаправлены на страницу оплаты",
+          });
 
-        setTimeout(() => {
-          openPaymentUrl(result.payment_url!);
-        }, 1000);
-
+          setTimeout(() => {
+            if (window.Telegram?.WebApp?.openLink) {
+              window.Telegram.WebApp.openLink(result.payment_url!);
+            } else {
+              window.open(result.payment_url!, '_blank');
+            }
+          }, 1000);
+        }
       } else {
         throw new Error(result.error || 'Ошибка создания платежа');
       }
