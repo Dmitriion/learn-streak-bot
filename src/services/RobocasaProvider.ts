@@ -1,5 +1,7 @@
 
 import { PaymentData, PaymentResponse } from '../schemas/validation';
+import LoggingService from './LoggingService';
+import ErrorService from './ErrorService';
 
 export interface RobocasaConfig {
   merchantId: string;
@@ -25,15 +27,24 @@ export interface RobocasaPaymentRequest {
 class RobocasaProvider {
   private config: RobocasaConfig;
   private baseUrl: string;
+  private logger: LoggingService;
+  private errorService: ErrorService;
 
   constructor(config: RobocasaConfig) {
     this.config = config;
     this.baseUrl = config.testMode 
       ? 'https://demo.robocasa.ru/api/v1' 
       : 'https://api.robocasa.ru/v1';
+    this.logger = LoggingService.getInstance();
+    this.errorService = ErrorService.getInstance();
   }
 
   async createPayment(paymentData: PaymentData): Promise<PaymentResponse> {
+    this.logger.info('Robocasa creating payment', { 
+      userId: paymentData.user_id, 
+      amount: paymentData.amount 
+    });
+
     try {
       const orderId = `order_${paymentData.user_id}_${Date.now()}`;
       
@@ -52,8 +63,6 @@ class RobocasaProvider {
         }
       };
 
-      console.log('Robocasa payment request:', paymentRequest);
-
       const response = await fetch(`${this.baseUrl}/payments`, {
         method: 'POST',
         headers: {
@@ -65,10 +74,14 @@ class RobocasaProvider {
       });
 
       if (!response.ok) {
-        throw new Error(`Robocasa API error: ${response.status}`);
+        throw new Error(`Robocasa API error: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
+      
+      this.logger.info('Robocasa payment created successfully', { 
+        paymentId: result.payment_id 
+      });
       
       return {
         success: true,
@@ -77,7 +90,11 @@ class RobocasaProvider {
         message: 'Платеж создан через Robocasa'
       };
     } catch (error) {
-      console.error('Robocasa payment error:', error);
+      this.errorService.handlePaymentError(
+        'Ошибка создания платежа Robocasa',
+        { paymentData, originalError: error }
+      );
+      
       return {
         success: false,
         error: 'Ошибка создания платежа через Robocasa'
@@ -85,7 +102,9 @@ class RobocasaProvider {
     }
   }
 
-  async getPaymentStatus(paymentId: string): Promise<any> {
+  async checkPaymentStatus(paymentId: string): Promise<PaymentResponse> {
+    this.logger.info('Robocasa checking payment status', { paymentId });
+
     try {
       const response = await fetch(`${this.baseUrl}/payments/${paymentId}`, {
         headers: {
@@ -95,13 +114,69 @@ class RobocasaProvider {
       });
 
       if (!response.ok) {
-        throw new Error(`Robocasa API error: ${response.status}`);
+        throw new Error(`Robocasa API error: ${response.status} ${response.statusText}`);
       }
 
-      return await response.json();
+      const result = await response.json();
+      
+      this.logger.info('Robocasa payment status checked', { 
+        paymentId: result.payment_id,
+        status: result.status 
+      });
+
+      return {
+        success: result.status === 'succeeded',
+        payment_id: result.payment_id,
+        message: `Статус платежа: ${result.status}`
+      };
     } catch (error) {
-      console.error('Robocasa get payment status error:', error);
+      this.errorService.handlePaymentError(
+        'Ошибка проверки статуса Robocasa',
+        { paymentId, originalError: error }
+      );
+      
+      return {
+        success: false,
+        error: 'Ошибка проверки статуса платежа через Robocasa'
+      };
+    }
+  }
+
+  async getSubscriptionStatus(userId: string): Promise<any> {
+    try {
+      this.logger.info('Getting subscription status for user', { userId });
+      
+      // В реальной реализации здесь был бы запрос к API подписок Robocasa
+      // Пока возвращаем null, так как API подписок требует отдельной настройки
       return null;
+    } catch (error) {
+      this.errorService.handleError({
+        category: 'payment',
+        message: 'Ошибка получения статуса подписки Robocasa',
+        originalError: error as Error,
+        context: { userId },
+        recoverable: true
+      });
+      return null;
+    }
+  }
+
+  async cancelSubscription(userId: string, subscriptionId: string): Promise<boolean> {
+    try {
+      this.logger.info('Canceling subscription', { userId, subscriptionId });
+      
+      // В реальной реализации здесь был бы запрос к API отмены подписки Robocasa
+      // Пока возвращаем true как успешную операцию
+      return true;
+    } catch (error) {
+      this.errorService.handleError({
+        category: 'payment',
+        message: 'Ошибка отмены подписки Robocasa',
+        originalError: error as Error,
+        context: { userId, subscriptionId },
+        recoverable: true
+      });
+      return false;
     }
   }
 }

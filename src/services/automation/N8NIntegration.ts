@@ -109,6 +109,10 @@ class N8NIntegration {
 
       const webhookUrl = `${this.baseWebhookUrl}${trigger.webhook_url}`;
       
+      // Добавляю timeout и better error handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд timeout
+
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
@@ -119,7 +123,10 @@ class N8NIntegration {
           timestamp: new Date().toISOString(),
           environment: import.meta.env.MODE
         }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         this.logger.info('Событие успешно отправлено в N8N', { 
@@ -135,10 +142,16 @@ class N8NIntegration {
         return false;
       }
     } catch (error) {
-      this.logger.error('Ошибка отправки события в N8N', { 
-        error,
-        eventType: event.type 
-      });
+      if (error.name === 'AbortError') {
+        this.logger.error('Timeout при отправке события в N8N', { 
+          eventType: event.type 
+        });
+      } else {
+        this.logger.error('Ошибка отправки события в N8N', { 
+          error,
+          eventType: event.type 
+        });
+      }
       return false;
     }
   }
@@ -177,6 +190,11 @@ class N8NIntegration {
 
     try {
       const testUrl = `${this.baseWebhookUrl}/test`;
+      
+      // Добавляю timeout и better error handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд для теста
+
       const response = await fetch(testUrl, {
         method: 'POST',
         headers: {
@@ -187,7 +205,10 @@ class N8NIntegration {
           timestamp: new Date().toISOString(),
           environment: import.meta.env.MODE
         }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         this.logger.info('N8N соединение успешно протестировано');
@@ -196,8 +217,13 @@ class N8NIntegration {
         return { success: false, error: `HTTP ${response.status}` };
       }
     } catch (error) {
-      this.logger.error('Ошибка тестирования N8N соединения', { error });
-      return { success: false, error: 'Ошибка соединения' };
+      if (error.name === 'AbortError') {
+        this.logger.error('Timeout при тестировании N8N соединения');
+        return { success: false, error: 'Timeout соединения' };
+      } else {
+        this.logger.error('Ошибка тестирования N8N соединения', { error });
+        return { success: false, error: 'Ошибка соединения' };
+      }
     }
   }
 

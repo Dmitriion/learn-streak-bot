@@ -257,7 +257,8 @@ class PaymentService {
             this.logger.info('Статус платежа получен', { 
               paymentId, 
               provider: name,
-              status: result.data?.status
+              // Убираю обращение к result.data?.status - такого поля нет в PaymentResponse
+              success: result.success
             });
             return result;
           }

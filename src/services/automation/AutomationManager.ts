@@ -1,3 +1,4 @@
+
 import N8NIntegration from './N8NIntegration';
 import { N8NWebhookEvent } from '../../types/automation';
 import { TelegramUser } from '../auth/types';
@@ -133,10 +134,11 @@ class AutomationManager {
     this.n8nIntegration.toggleTrigger(triggerId, enabled);
   }
 
-  // Добавляю недостающие методы для диагностики
+  // Исправляю метод testConnection - теперь возвращает boolean как ожидается
   async testConnection(): Promise<boolean> {
     try {
-      return await this.n8nIntegration.testConnection();
+      const result = await this.n8nIntegration.testConnection();
+      return result.success;
     } catch (error) {
       this.logger.error('Ошибка тестирования подключения N8N', { error });
       return false;
