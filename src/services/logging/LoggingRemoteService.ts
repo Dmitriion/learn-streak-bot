@@ -1,6 +1,5 @@
 
 import { LogEntry } from '../LoggingService';
-import ErrorService from '../ErrorService';
 
 export interface LogBatch {
   logs: LogEntry[];
@@ -25,7 +24,6 @@ interface N8NIntegrationLike {
 
 class LoggingRemoteService {
   private static instance: LoggingRemoteService;
-  private errorService: ErrorService;
   private config: LoggingConfig;
   private pendingLogs: LogEntry[] = [];
   private lastFlushTime: number = 0;
@@ -33,7 +31,6 @@ class LoggingRemoteService {
   private n8nIntegration: N8NIntegrationLike | null = null;
 
   constructor() {
-    this.errorService = ErrorService.getInstance();
     this.config = this.getDefaultConfig();
     this.setupNetworkListeners();
   }
@@ -155,11 +152,10 @@ class LoggingRemoteService {
     const logsToSend = [...this.pendingLogs];
     this.pendingLogs = [];
 
-    const success = await this.errorService.withRetry(
+    const success = await this.withRetry(
       () => this.sendLogs(logsToSend),
       this.config.maxRetries,
-      1000,
-      'network'
+      1000
     );
 
     if (!success) {
@@ -169,6 +165,34 @@ class LoggingRemoteService {
     } else {
       this.lastFlushTime = Date.now();
     }
+  }
+
+  // Внутренний retry механизм без зависимости от ErrorService
+  private async withRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    delay: number = 1000
+  ): Promise<T> {
+    let lastError: Error;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error as Error;
+        
+        if (attempt === maxRetries) {
+          console.error(`[LoggingRemoteService] Операция завершилась неудачей после ${maxRetries} попыток:`, lastError);
+          throw lastError;
+        }
+
+        // Экспоненциальная задержка
+        const retryDelay = delay * Math.pow(2, attempt - 1);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+
+    throw lastError!;
   }
 
   async forceFlush(): Promise<void> {
