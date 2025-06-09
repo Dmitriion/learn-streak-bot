@@ -1,6 +1,9 @@
+
 import LoggingService from '../LoggingService';
 import N8NIntegration from './N8NIntegration';
-import EnvironmentManager from '../environment/EnvironmentManager';
+import { AutomationConfig } from './AutomationConfig';
+import { AutomationEventManager } from './AutomationEventManager';
+import { AutomationHealthService } from './AutomationHealthService';
 import { AutomationEvent, AutomationTrigger } from '../../types/automation';
 import { AutomationHealthDetails } from '../../types/metrics';
 import { TelegramUser } from '../auth/types';
@@ -9,15 +12,22 @@ class AutomationManager {
   private static instance: AutomationManager;
   private logger: LoggingService;
   private n8nIntegration: N8NIntegration;
-  private environmentManager: EnvironmentManager;
-  private isEnabled: boolean = true;
-  private webhookUrl: string = '';
+  private config: AutomationConfig;
+  private eventManager: AutomationEventManager;
+  private healthService: AutomationHealthService;
 
   constructor() {
     this.logger = LoggingService.getInstance();
     this.n8nIntegration = N8NIntegration.getInstance();
-    this.environmentManager = EnvironmentManager.getInstance();
-    this.initializeWebhookUrl();
+    this.config = new AutomationConfig();
+    this.eventManager = new AutomationEventManager(this.config, this.n8nIntegration);
+    this.healthService = new AutomationHealthService(this.config, this.n8nIntegration);
+    
+    // Синхронизируем URL с N8N интеграцией
+    const webhookUrl = this.config.getWebhookUrl();
+    if (webhookUrl) {
+      this.n8nIntegration.setWebhookUrl(webhookUrl);
+    }
   }
 
   static getInstance(): AutomationManager {
@@ -27,107 +37,37 @@ class AutomationManager {
     return AutomationManager.instance;
   }
 
-  private initializeWebhookUrl() {
-    const savedUrl = localStorage.getItem('n8n_webhook_url');
-    if (savedUrl) {
-      this.webhookUrl = savedUrl;
-      this.n8nIntegration.setWebhookUrl(savedUrl);
-    }
-  }
-
   setN8NWebhookUrl(url: string) {
-    this.webhookUrl = url;
+    this.config.setN8NWebhookUrl(url);
     this.n8nIntegration.setWebhookUrl(url);
-    localStorage.setItem('n8n_webhook_url', url);
     this.logger.info('N8N webhook URL обновлен', { url });
   }
 
   enable() {
-    this.isEnabled = true;
+    this.config.enable();
     this.logger.info('AutomationManager включен');
   }
 
   disable() {
-    this.isEnabled = false;
+    this.config.disable();
     this.logger.info('AutomationManager отключен');
   }
 
   async triggerEvent(event: AutomationEvent) {
-    if (!this.isEnabled) {
-      this.logger.debug('AutomationManager отключен, событие пропущено', { event: event.type });
-      return;
-    }
-
-    if (!this.webhookUrl) {
-      this.logger.warn('N8N webhook URL не настроен', { event: event.type });
-      return;
-    }
-
-    try {
-      this.logger.info('Отправка события в N8N', { event: event.type, userId: event.user_id });
-      await this.n8nIntegration.sendEvent(event);
-    } catch (error) {
-      this.logger.error('Ошибка отправки события в N8N', { 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        event: event.type 
-      });
-    }
+    return this.eventManager.triggerEvent(event);
   }
 
   async getHealthStatus(): Promise<{ 
     isHealthy: boolean; 
     details: AutomationHealthDetails;
   }> {
-    if (!this.webhookUrl) {
-      return {
-        isHealthy: false,
-        details: {
-          webhookUrl: '',
-          lastSuccessfulCall: null,
-          lastError: 'Webhook URL не настроен',
-          responseTime: 0,
-          status: 'unhealthy',
-          retryCount: 0
-        }
-      };
-    }
-
-    try {
-      const connectionTest = await this.n8nIntegration.testConnection();
-      return {
-        isHealthy: connectionTest.success,
-        details: {
-          webhookUrl: this.webhookUrl,
-          lastSuccessfulCall: connectionTest.success ? new Date().toISOString() : null,
-          lastError: connectionTest.error || null,
-          responseTime: 0,
-          status: connectionTest.success ? 'healthy' : 'unhealthy',
-          retryCount: 0
-        }
-      };
-    } catch (error) {
-      return {
-        isHealthy: false,
-        details: {
-          webhookUrl: this.webhookUrl,
-          lastSuccessfulCall: null,
-          lastError: error instanceof Error ? error.message : 'Unknown error',
-          responseTime: 0,
-          status: 'unhealthy',
-          retryCount: 0
-        }
-      };
-    }
+    return this.healthService.getHealthStatus();
   }
 
   getConfiguration() {
     return {
-      webhookUrl: this.webhookUrl,
-      enabled_triggers: this.n8nIntegration.getEnabledTriggers(),
-      retry_settings: {
-        max_retries: 3,
-        retry_delay: 1000
-      }
+      ...this.config.getConfiguration(),
+      enabled_triggers: this.n8nIntegration.getEnabledTriggers()
     };
   }
 
@@ -141,69 +81,32 @@ class AutomationManager {
   }
 
   async testConnection(): Promise<boolean> {
-    const result = await this.n8nIntegration.testConnection();
-    return result.success;
+    return this.healthService.testConnection();
   }
 
-  // ИСПРАВЛЕНО: Методы для автоматизации образовательных событий с правильными типами
+  // Методы для автоматизации образовательных событий
   async onUserRegistered(telegramUser: TelegramUser, fullName: string): Promise<void> {
-    await this.triggerEvent({
-      type: 'user_registered',
-      user_id: telegramUser.id.toString(),
-      timestamp: new Date().toISOString(),
-      data: { fullName },
-      telegram_data: {
-        user_id: telegramUser.id,  // ИСПРАВЛЕНО: добавлено поле user_id
-        username: telegramUser.username,
-        first_name: telegramUser.first_name,
-        last_name: telegramUser.last_name
-      }
-    });
+    return this.eventManager.onUserRegistered(telegramUser, fullName);
   }
 
   async onLessonCompleted(userId: string, lessonId: number, score?: number): Promise<void> {
-    await this.triggerEvent({
-      type: 'lesson_completed',
-      user_id: userId,
-      timestamp: new Date().toISOString(),
-      data: { lessonId, score }
-    });
+    return this.eventManager.onLessonCompleted(userId, lessonId, score);
   }
 
   async onTestPassed(userId: string, lessonId: number, score: number, totalQuestions: number): Promise<void> {
-    await this.triggerEvent({
-      type: 'test_passed',
-      user_id: userId,
-      timestamp: new Date().toISOString(),
-      data: { lessonId, score, totalQuestions }
-    });
+    return this.eventManager.onTestPassed(userId, lessonId, score, totalQuestions);
   }
 
   async onPaymentSuccess(userId: string, planId: string, amount: number): Promise<void> {
-    await this.triggerEvent({
-      type: 'payment_success',
-      user_id: userId,
-      timestamp: new Date().toISOString(),
-      data: { planId, amount }
-    });
+    return this.eventManager.onPaymentSuccess(userId, planId, amount);
   }
 
   async onCourseCompleted(userId: string, totalLessons: number, finalScore: number): Promise<void> {
-    await this.triggerEvent({
-      type: 'course_completed',
-      user_id: userId,
-      timestamp: new Date().toISOString(),
-      data: { totalLessons, finalScore }
-    });
+    return this.eventManager.onCourseCompleted(userId, totalLessons, finalScore);
   }
 
   async onUserInactive(userId: string, daysSinceLastActivity: number): Promise<void> {
-    await this.triggerEvent({
-      type: 'user_inactive',
-      user_id: userId,
-      timestamp: new Date().toISOString(),
-      data: { daysSinceLastActivity }
-    });
+    return this.eventManager.onUserInactive(userId, daysSinceLastActivity);
   }
 
   getN8NIntegration() {
