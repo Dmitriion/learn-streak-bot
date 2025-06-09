@@ -1,3 +1,4 @@
+
 import { PaymentData, PaymentResponse } from '../schemas/validation';
 import LoggingService from './LoggingService';
 import ErrorService from './ErrorService';
@@ -52,7 +53,7 @@ class YOUCasaProvider {
           currency: paymentData.currency
         },
         confirmation: {
-          type: 'redirect';
+          type: 'redirect',
           return_url: paymentData.return_url || `${window.location.origin}/payment-success`
         },
         description: `Подписка на обучающую платформу - План ${paymentData.plan_id}`,
