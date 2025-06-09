@@ -1,6 +1,6 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import MockBackendService from '../MockBackendService';
+import MockBackendService from '../mock/MockBackendService';
 import { UserRegistrationData } from '../registration/types';
 
 describe('MockBackendService', () => {

@@ -4,16 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import { useTelegram } from '../../providers/TelegramProvider';
-import UserRegistrationService from '../../services/UserRegistrationService';
+import MockBackendService from '../../services/mock/MockBackendService';
 
 const MockDataManager: React.FC = () => {
   const { hapticFeedback } = useTelegram();
-  const registrationService = UserRegistrationService.getInstance();
-  const mockUsers = registrationService.getMockData();
+  const mockBackendService = MockBackendService.getInstance();
+  const mockUsers = mockBackendService.getAllUsers();
 
   const handleClearMockData = () => {
     if (confirm('Вы уверены, что хотите очистить все тестовые данные?')) {
-      registrationService.clearMockData();
+      mockBackendService.clearAllData();
       hapticFeedback('heavy');
       window.location.reload();
     }
