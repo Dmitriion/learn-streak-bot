@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { render, RenderOptions } from '@testing-library/react';
+import { render, RenderOptions, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TelegramProvider } from '../providers/TelegramProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -81,5 +81,6 @@ export const waitForLoadingToFinish = () =>
   new Promise(resolve => setTimeout(resolve, 0));
 
 // Переэкспортируем всё из testing-library
+export { screen, waitFor, fireEvent };
 export * from '@testing-library/react';
 export { customRender as render };
