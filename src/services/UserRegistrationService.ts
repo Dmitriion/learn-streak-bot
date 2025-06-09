@@ -1,5 +1,5 @@
 
-import MockBackendService from './MockBackendService';
+import MockBackendService from './mock/MockBackendService';
 import LoggingService from './LoggingService';
 import FallbackManager from './fallback/FallbackManager';
 import EnvironmentManager from './environment/EnvironmentManager';
